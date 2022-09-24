@@ -20,6 +20,7 @@ I'm using [this](https://mitelman.engineering/blog/python-best-practice/automati
 ## Automated Updates
 - Twitter [api](https://developer.twitter.com/en/docs) (oauth2)
   - using [tweepy](https://www.tweepy.org/)
+  - Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python)
 - Twitch [api](https://dev.twitch.tv/docs/api/) (oauth2)
 - Youtube [api](https://developers.google.com/youtube/v3)
 - Instagram [api](https://developers.facebook.com/docs/instagram-basic-display-api)
