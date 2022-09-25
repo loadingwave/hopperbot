@@ -11,6 +11,18 @@ I can put in a file with some people and their socialmedia handles and the progr
 ## Setup
 I'm using [this](https://mitelman.engineering/blog/python-best-practice/automating-python-best-practices-for-a-new-project/) setup right now. Really quite usefull :]
 
+### Setup selenium
+Imports like selenium are automatically handled with this, however to use selenium we do need to install geckodriver and make sure firefox is intalled [src]:
+
+(https://askubuntu.com/questions/870530/how-to-install-geckodriver-in-ubuntu) get the link for the latest release at the [relase page](https://github.com/mozilla/geckodriver/releases). (at time of writing this is https://github.com/mozilla/geckodriver/releases/download/v0.31.0/geckodriver-v0.31.0-linux64.tar.gz)
+```
+wget <link to release>
+tar -xvzf <tarbal you just downloaded>
+chmod +x geckodriver
+sudo mv geckodriver /usr/local/bin/
+```
+I also had to install firefox: `sudo apt install firefox`
+
 # Project Content
 
 ## Posting to
