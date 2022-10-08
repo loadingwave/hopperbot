@@ -163,3 +163,4 @@ cython_debug/
 .vscode/
 .coverage
 config.py
+tweet.png
