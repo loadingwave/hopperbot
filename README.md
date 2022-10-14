@@ -23,6 +23,11 @@ sudo mv geckodriver /usr/local/bin/
 ```
 I also had to install firefox: `sudo apt install firefox`
 
+## Posting Images to tumblr
+This seems harder than it should be. There does not seem to be a way to do this automatically with pytumblr ór pytumblr2.
+
+From the tumblr api i gathered i need to do this as a multipart-encoded thing. I can do this with [requests](https://requests.readthedocs.io/en/latest/user/quickstart/#post-a-multipart-encoded-file)
+
 # Project Content
 
 ## Posting to
