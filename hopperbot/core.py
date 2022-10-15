@@ -1,4 +1,5 @@
-# import pytumblr2
+from pprint import pprint
+import pytumblr2
 import tweepy
 
 from typing import Type
@@ -7,19 +8,14 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
-from config import twitter_keys  # , tumblr_keys
-import logging
+from config import twitter_keys, tumblr_keys
 import time
 
-# by default StreamingClient writes debug information wiht logging level DEBUG,
-# this makes sure its written to file
-logging.basicConfig(filename="tweets.log", encoding="utf-8", level=logging.DEBUG)
+blog = "test37"
 
 
-def renderTweet(driver: webdriver.Firefox, tweet_id: int) -> None:
-    TWEET_LOOKUP_URL = "https://twitter.com/twitter/statuses/{}"
+def renderTweet(driver: webdriver.Firefox, url: str, filename: str) -> None:
 
-    url = TWEET_LOOKUP_URL.format(tweet_id)
     driver.get(url)
 
     # Just to make sure all elements load first
@@ -31,7 +27,6 @@ def renderTweet(driver: webdriver.Firefox, tweet_id: int) -> None:
     img = web_element.screenshot_as_png
 
     # Write the image data to a file
-    filename = "tweet-{}.png".format(tweet_id)
     with open(filename, "wb") as file:
         file.write(img)
 
@@ -39,9 +34,11 @@ def renderTweet(driver: webdriver.Firefox, tweet_id: int) -> None:
 class TweetListener(tweepy.StreamingClient):
 
     driver: webdriver.Firefox
+    tumblr_client: pytumblr2.TumblrRestClient
 
     def __init__(
         self,
+        tumblr_client: pytumblr2.TumblrRestClient,
         bearer_token: str,
         return_type: Type[tweepy.Response] = tweepy.Response,
         wait_on_rate_limit: bool = False,
@@ -54,6 +51,8 @@ class TweetListener(tweepy.StreamingClient):
             **kwargs,
         )
 
+        self.tumblr_client = tumblr_client
+
         # Setup the browser to take pictures
         options = Options()
         options.headless = True
@@ -62,16 +61,70 @@ class TweetListener(tweepy.StreamingClient):
         self.driver.set_window_position(0, 0)
         self.driver.set_window_size(2000, 2000)
 
-    def on_tweet(self, tweet: tweepy.Tweet) -> None:
-        renderTweet(self.driver, tweet.id)
+    def on_response(self, response: tweepy.StreamResponse) -> None:
+        (tweet, includes, errors, matching_rules) = response
+
+        print("Someone tweeted!")
+        for error in errors:
+            pprint(error)
+
+        username = includes["users"][0]["username"]
+        rule_tags = [rule.tag for rule in matching_rules]
+
+        header_content_block = {
+            "type": "text",
+            "text": "{} posted on Twitter!".format(rule_tags[0]),
+        }
+
+        identifier = "tweet-{}".format(tweet.id)
+        url = "https://twitter.com/{}/status/{}".format(username, tweet.id)
+        filename = "tweet-{}.png".format(tweet.id)
+        alt_text = "A tweet by @{}: {}".format(username, tweet.text)
+
+        renderTweet(self.driver, url, filename)
+
+        tweet_content_block = {
+            "type": "image",
+            "media": [
+                {
+                    "type": "image/png",
+                    "identifier": identifier,
+                }
+            ],
+            "alt_text": alt_text,
+            "attribution": {
+                "type": "app",
+                "url": url,
+                "app_name": "Twitter",
+                "display_text": "View on Twitter",
+            },
+        }
+
+        self.tumblr_client.create_post(
+            blog,
+            content=[header_content_block, tweet_content_block],
+            tags=["automated"],
+            media_sources={identifier: filename},
+        )
+
+    def on_connect(self) -> None:
+        print("Listening to twitter... (connected)")
 
     def __del__(self) -> None:
         self.driver.close()
 
 
-twitter_sc = TweetListener(**twitter_keys)
+def main() -> None:
 
-rule = tweepy.StreamRule("from:space_stew OR from:tapwaterthomas", "thomas")
-twitter_sc.add_rules(rule)
+    tumblr_client = pytumblr2.TumblrRestClient(**tumblr_keys)
 
-twitter_sc.filter()
+    twitter_sc = TweetListener(tumblr_client=tumblr_client, **twitter_keys)
+
+    rule = tweepy.StreamRule("from:space_stew OR from:tapwaterthomas", "Thomas")
+    twitter_sc.add_rules(rule)
+
+    twitter_sc.filter(expansions="author_id", user_fields=["username"])
+
+
+if __name__ == "__main__":
+    main()
