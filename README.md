@@ -37,6 +37,8 @@ I want to do that cool thing where update accounts will reblog and say "Ranboo r
 To do this I will need to store a list of (twitter) id's and link them to tumblr reblog id's.
 I think I will also need to store the blog/person this is for, just so that I can have the correct name in the text
 
+It would also be good to store the thread index of that tweet
+
 It seems sqlite is by far the easiest as it is build in to python
 
 # Twitter
