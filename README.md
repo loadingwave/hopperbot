@@ -41,14 +41,14 @@ It seems sqlite is by far the easiest as it is build in to python
 
 # Twitter
 
-## Assumptions
-
-### Screenshots
-- The xpath
-- All tweets will fit on one screen (might not happen) might have to scroll the element into view
-  [stackoverflow](https://stackoverflow.com/questions/3401343/scroll-element-into-view-with-selenium)
+## Screenshots
+- Assumption: The xpath will stay the same
+All tweets will fit on one screen (might not happen) might have to scroll the element into view [stackoverflow](https://stackoverflow.com/questions/3401343/scroll-element-into-view-with-selenium)
 Let's assume a tweet is max 800 pixels high (crumbs tweet with picture is 788 px high).
 The header is 53 px high, the footer is 224 px, so in total we need to keep 277 px of extra space
+
+"A dictionary with the size and location of the element." <- from the documentation of WebElement.rect
+WHAT ARE THOSE PROPERTIES CALLED!! I DONT WANT TO HAVE TO USE TRIAL AND ERROR!!
 
 
 
