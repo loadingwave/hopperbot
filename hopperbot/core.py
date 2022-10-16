@@ -1,16 +1,17 @@
-from time import sleep
 import os
-from typing import Type, List, Union
 from pprint import pprint
+from time import sleep
+from typing import List, Type, Union
 
 from pytumblr2 import TumblrRestClient
-from tweepy import StreamingClient, Response, StreamResponse, StreamRule, Tweet
 
 # from tweepy import Client as TwitterClient
 from selenium.webdriver import Chrome
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from tweepy import Response, StreamingClient, StreamResponse, StreamRule, Tweet
 
 
 class TweetListener(StreamingClient):
@@ -142,9 +143,10 @@ class TweetListener(StreamingClient):
         sleep(1.5)
 
         # Scroll to top
-        scrolling_xpath = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div"
-        full_element = self.driver.find_element(By.XPATH, scrolling_xpath)
-        self.driver.execute_script("arguments[0].scrollIntoView();", full_element)
+        body_element = self.driver.find_element(By.XPATH, "/html/body")
+        # I'm not quite sure why, but we need to do this twice, else it doesn't fully scroll to the top
+        body_element.send_keys(Keys.CONTROL + Keys.HOME)
+        body_element.send_keys(Keys.CONTROL + Keys.HOME)
 
         # Again make sure all elements (images etc) are loaded
         sleep(1.5)
