@@ -1,25 +1,31 @@
 import time
-from typing import Type
+import os
+from typing import Type, List, Union
+from pprint import pprint
 
 from pytumblr2 import TumblrRestClient
-import tweepy
-from selenium import webdriver
+from tweepy import StreamingClient, Response, StreamResponse, StreamRule, Tweet
+
+# from tweepy import Client as TwitterClient
+from selenium.webdriver import Firefox
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 
 
-class TweetListener(tweepy.StreamingClient):
+class TweetListener(StreamingClient):
 
-    driver: webdriver.Firefox
+    driver: Firefox
     tumblr_client: TumblrRestClient
+    # twitter_client: TwitterClient
     blogname: str
 
     def __init__(
         self,
         tumblr_client: TumblrRestClient,
+        # twitter_client: TwitterClient,
         blogname: str,
         bearer_token: str,
-        return_type: Type[tweepy.Response] = tweepy.Response,
+        return_type: Type[Response] = Response,
         wait_on_rate_limit: bool = False,
         **kwargs: str,
     ):
@@ -31,39 +37,61 @@ class TweetListener(tweepy.StreamingClient):
         )
 
         self.tumblr_client = tumblr_client
+        # self.twitter_client = twitter_client
         self.blogname = blogname
 
         # Setup the browser to take pictures
         options = Options()
         options.headless = True
-        self.driver = webdriver.Firefox(options=options)
+        self.driver = Firefox(options=options)
 
         self.driver.set_window_position(0, 0)
         self.driver.set_window_size(2000, 2000)
 
-    def on_response(self, response: tweepy.StreamResponse) -> None:
-        (tweet, includes, errors, matching_rules) = response
+    def on_response(self, response: StreamResponse) -> None:
+        tweet: Tweet
+        rules: List[StreamRule]
+        (tweet, includes, errors, rules) = response
 
-        print("Someone tweeted!")
-        for error in errors:
-            print(error)
+        pprint(response)
 
-        username = includes["users"][0]["username"]
-        rule_tags = [rule.tag for rule in matching_rules]
+        if errors:
+            for error in errors:
+                pprint(error)
+        else:
+            # Can we just assume the first user is the author?
+            username = includes["users"][0]["username"]
 
-        header_content_block = {
+            identifier = "tweet-{}".format(tweet.id)
+            url = "https://twitter.com/{}/status/{}".format(username, tweet.id)
+            filename = "tweet-{}.png".format(tweet.id)
+            alt_text = "A tweet by @{}: {}".format(username, tweet.text)
+
+            self.render_tweet(url, filename)
+
+            self.tumblr_client.create_post(
+                blogname=self.blogname,
+                content=[
+                    self.header_block(rules),
+                    self.tweet_block(identifier, alt_text, url),
+                ],
+                tags=["automated"],
+                media_sources={identifier: filename},
+            )
+
+            os.remove(filename)
+
+    def header_block(self, rules: List[StreamRule]) -> dict[str, str]:
+        name = rules[0].tag.capitalize()
+        return {
             "type": "text",
-            "text": "{} posted on Twitter!".format(rule_tags[0]),
+            "text": "{} posted on Twitter".format(name),
         }
 
-        identifier = "tweet-{}".format(tweet.id)
-        url = "https://twitter.com/{}/status/{}".format(username, tweet.id)
-        filename = "tweet-{}.png".format(tweet.id)
-        alt_text = "A tweet by @{}: {}".format(username, tweet.text)
-
-        self.render_tweet(url, filename)
-
-        tweet_content_block = {
+    def tweet_block(
+        self, identifier: str, alt_text: str, url: str
+    ) -> dict[str, Union[str, dict[str, str], List[dict[str, str]]]]:
+        return {
             "type": "image",
             "media": [
                 {
@@ -80,17 +108,12 @@ class TweetListener(tweepy.StreamingClient):
             },
         }
 
-        self.tumblr_client.create_post(
-            blogname=self.blogname,
-            content=[header_content_block, tweet_content_block],
-            tags=["automated"],
-            media_sources={identifier: filename},
-        )
-
     def on_connect(self) -> None:
         print("Listening to twitter... (connected)")
 
-    def render_tweet(self, url: str, filename: str) -> None:
+    def render_tweet(
+        self, url: str, filename: str, conversation_lenth: int = 1
+    ) -> None:
         self.driver.get(url)
 
         # Just to make sure all elements load first

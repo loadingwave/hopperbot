@@ -14,7 +14,22 @@ def main() -> None:
     rule = StreamRule("from:space_stew OR from:tapwaterthomas", "Thomas")
     twitter_sc.add_rules(rule)
 
-    twitter_sc.filter(expansions="author_id", user_fields=["username"])
+    expansions = [
+        "author_id",
+        "referenced_tweets.id",
+        "in_reply_to_user_id",
+        "attachments.media_keys",
+        "entities.mentions.username",
+        "referenced_tweets.id.author_id",
+    ]
+
+    tweet_fields = ["conversation_id"]
+
+    media_fields = ["alt_text", "type", "url"]
+
+    twitter_sc.filter(
+        expansions=expansions, tweet_fields=tweet_fields, media_fields=media_fields
+    )
 
 
 if __name__ == "__main__":
