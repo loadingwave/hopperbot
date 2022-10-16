@@ -1,4 +1,4 @@
-import time
+from time import sleep
 import os
 from typing import Type, List, Union
 from pprint import pprint
@@ -7,14 +7,15 @@ from pytumblr2 import TumblrRestClient
 from tweepy import StreamingClient, Response, StreamResponse, StreamRule, Tweet
 
 # from tweepy import Client as TwitterClient
-from selenium.webdriver import Firefox
+from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 
 
 class TweetListener(StreamingClient):
 
-    driver: Firefox
+    driver: Chrome
     tumblr_client: TumblrRestClient
     # twitter_client: TwitterClient
     blogname: str
@@ -43,7 +44,7 @@ class TweetListener(StreamingClient):
         # Setup the browser to take pictures
         options = Options()
         options.headless = True
-        self.driver = Firefox(options=options)
+        self.driver = Chrome(options=options)
 
         self.driver.set_window_position(0, 0)
         self.driver.set_window_size(2000, 2000)
@@ -117,7 +118,7 @@ class TweetListener(StreamingClient):
         self.driver.get(url)
 
         # Just to make sure all elements load first
-        time.sleep(2)
+        sleep(2)
 
         # Screenshot the Tweet
         XPATH = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[1]/div/div/div[1]/article"
@@ -127,6 +128,47 @@ class TweetListener(StreamingClient):
         # Write the image data to a file
         with open(filename, "wb") as file:
             file.write(img)
+
+    def render_thread(self, url: str, tweet_id: str, thread_depth: int = 1) -> None:
+
+        # Variables keeping track of current actual view of the tweets, not the viewport
+        footer_height = 225
+        view_bottom = self.driver.get_window_size()["height"] - footer_height
+        header_bottom = 53
+
+        self.driver.get(url)
+
+        # Just to make sure all elements load first
+        sleep(1.5)
+
+        # Scroll to top
+        scrolling_xpath = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div"
+        full_element = self.driver.find_element(By.XPATH, scrolling_xpath)
+        self.driver.execute_script("arguments[0].scrollIntoView();", full_element)
+
+        # Again make sure all elements (images etc) are loaded
+        sleep(1.5)
+
+        tweet_xpath = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]"
+
+        for i in range(1, thread_depth + 1):
+            tweet_element = self.driver.find_element(By.XPATH, tweet_xpath.format(i))
+
+            tweet_top = tweet_element.rect["y"]
+            tweet_bottom = tweet_top + tweet_element.rect["height"]
+
+            if tweet_bottom >= view_bottom:
+                to_scroll = tweet_top - header_bottom
+                ActionChains(self.driver).scroll_by_amount(0, to_scroll).perform()
+                view_bottom += to_scroll
+                header_bottom += to_scroll
+
+                # Because we scrolled we now need to relocate the tweet
+                tweet_element = self.driver.find_element(
+                    By.XPATH, tweet_xpath.format(i)
+                )
+
+            tweet_element.screenshot("tweet{}-{}.png".format(tweet_id, i))
 
     def __del__(self) -> None:
         self.driver.close()
