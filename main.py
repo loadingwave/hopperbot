@@ -1,8 +1,9 @@
-from hopperbot.config import tumblr_keys, twitter_keys
-from hopperbot.core import TweetListener
 from pytumblr2 import TumblrRestClient as TumblrClient
 from tweepy import Client as TwitterClient
 from tweepy import StreamRule
+
+from hopperbot.config import tumblr_keys, twitter_keys
+from hopperbot.core import TweetListener
 
 
 def main() -> None:

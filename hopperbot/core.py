@@ -1,17 +1,19 @@
 import os
+import random
 from pprint import pprint
 from time import sleep
-from typing import List, Type, Union, TypeAlias
+from typing import List, Type, TypeAlias, Union
+
 from pytumblr2 import TumblrRestClient as TumblrClient
-from tweepy import Client as TwitterClient
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from tweepy import Client as TwitterClient
 from tweepy import Response, StreamingClient, StreamResponse, StreamRule, Tweet
+
 from config import twitter_names
-import random
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
