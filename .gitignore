@@ -162,7 +162,7 @@ cython_debug/
 # Custom add
 .vscode/
 .coverage
-config.py
+secrets.py
 *.png
 response.txt
 StreamResponse

@@ -165,7 +165,7 @@ class TweetListener(StreamingClient):
             elif len(others) == 1:
                 replies += " and someone else"
             elif people_count > 0:
-                replies += " and {}!".format(next(people_iter))
+                replies += " and {}".format(next(people_iter))
 
             return {
                 "type": "text",
