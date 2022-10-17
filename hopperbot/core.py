@@ -13,7 +13,7 @@ from selenium.webdriver.common.keys import Keys
 from tweepy import Client as TwitterClient
 from tweepy import Response, StreamingClient, StreamResponse, StreamRule, Tweet
 
-from config import twitter_names
+from .config import twitter_names
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
@@ -229,23 +229,22 @@ class TweetListener(StreamingClient):
 
         self.driver.get(url)
 
-        # Just to make sure all elements load first
-        sleep(1.5)
-
         # Scroll to top
         body_element = self.driver.find_element(By.XPATH, "/html/body")
+
         # I'm not quite sure why, but we need to do this twice, else it doesn't fully scroll to the top
         body_element.send_keys(Keys.CONTROL + Keys.HOME)
+        sleep(1)
         body_element.send_keys(Keys.CONTROL + Keys.HOME)
 
         # Again make sure all elements (images etc) are loaded
-        sleep(1.5)
+        sleep(1)
 
         tweet_xpath = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]"
 
         filenames = []
 
-        for i in range(tweet_index - thread_height, tweet_index + 1):
+        for i in range(tweet_index - thread_height + 1, tweet_index + 1):
             tweet_element = self.driver.find_element(By.XPATH, tweet_xpath.format(i))
 
             tweet_top = tweet_element.rect["y"]
