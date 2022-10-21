@@ -23,7 +23,28 @@ sudo mv geckodriver /usr/local/bin/
 ```
 I also had to install firefox: `sudo apt install firefox`
 
-## Posting Images to tumblr
+#TODO: Switched to Chrome for scrolling support, update setup
+
+## General
+
+### Reblogs
+I want to do that cool thing where ranboo-updates will reblog from tommy-updates and say "Ranboo replied to Tommy"
+
+To do this I will need to store a list of (twitter) id's and link them to tumblr reblog id's.
+I think I will also need to store the blog/person this is for, just so that I can have the correct name in the text
+
+It would also be good to store the thread index of that tweet
+
+It seems sqlite is by far the easiest as it is build in to python
+
+
+## Tumblr
+
+### API
+- Tumblr [api](https://www.tumblr.com/oauth/apps)
+- using [pytumblr](https://github.com/tumblr/pytumblr)
+
+### Posting Images to tumblr
 ~~This seems harder than it should be. There does not seem to be a way to do this automatically with pytumblr ór pytumblr2.~~
 
 ~~From the tumblr api i gathered i need to do this as a multipart-encoded thing. I can do this with [requests](https://requests.readthedocs.io/en/latest/user/quickstart/#post-a-multipart-encoded-file)~~
@@ -32,19 +53,22 @@ I also had to install firefox: `sudo apt install firefox`
 
 I had to read the documentation for pytumblr2 better (whoops). Why is all python documentation inline??
 
-## Reblogs
-I want to do that cool thing where update accounts will reblog and say "Ranboo replied to Tommy"
-To do this I will need to store a list of (twitter) id's and link them to tumblr reblog id's.
-I think I will also need to store the blog/person this is for, just so that I can have the correct name in the text
 
-It would also be good to store the thread index of that tweet
+## Twitter
 
-It seems sqlite is by far the easiest as it is build in to python
+### API
+Twitter [api](https://developer.twitter.com/en/docs) (oauth2)
+using [tweepy](https://www.tweepy.org/),
 
-# Twitter
 
-## Screenshots
-- Assumption: The xpath will stay the same
+### Async??
+Is currently blocking, there is also an async streaming client, that is probably better. I don't know how it works yet
+
+[asyncStreamingClient](https://docs.tweepy.org/en/stable/asyncstreamingclient.html)
+
+### Screenshots
+Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python)
+Assumption: The xpath will stay the same
 All tweets will fit on one screen (might not happen) might have to scroll the element into view [stackoverflow](https://stackoverflow.com/questions/3401343/scroll-element-into-view-with-selenium)
 Let's assume a tweet is max 800 pixels high (crumbs tweet with picture is 788 px high).
 The header is 53 px high, the footer is 224 px, so in total we need to keep 277 px of extra space
@@ -52,30 +76,47 @@ The header is 53 px high, the footer is 224 px, so in total we need to keep 277 
 "A dictionary with the size and location of the element." <- from the documentation of WebElement.rect
 WHAT ARE THOSE PROPERTIES CALLED!! I DONT WANT TO HAVE TO USE TRIAL AND ERROR!!
 
-
-
 ### users
-- The first user in the includes.users is always the author
+Assumption: The first user in the includes.users is always the author
+
+## Twitch
+[api](https://dev.twitch.tv/docs/api/)
+Will only need a few things:
+- EventSub to stream start and end
+- EventSub to channel changed (for title changes)
+- Query a live channel to see how long it has been running
+  (for things like, "X joined Y's stream (currently h:mm:ss into the stream))
+
+## Youtube
+[api](https://developers.google.com/youtube/v3)
+Subscription information is the only thing we need and is done trough pubsubhubbub ([link](https://developers.google.com/youtube/v3/guides/push_notifications))
+[link](youtube_push_notifications_to_discord_via) to reddit thread of someone who made a project with it. The github readme is very instructive too.
+
+## Instagram
+[api](https://developers.facebook.com/docs/instagram-basic-display-api)
+~~Stories are not supported :(~~
+but there _is_ an api for it: [link](https://instaloader.github.io/)
+Does have webhooks, but not for "user posted"
+
+## Reddit
+[api](https://www.reddit.com/dev/api/)
+[PRAW](https://asyncpraw.readthedocs.io/en/stable/getting_started/quick_start.html) Python Reddit API Wrapper. Redditor stream seems interesting.
+
+## Tiktok
+[api](https://developers.tiktok.com/doc/getting-started-ios-quickstart-objective-c/)
+[docs](https://davidteather.github.io/TikTok-Api/docs/TikTokApi.html) for a python wrapper
+Does have webhooks, but not for "user posted video"
+
+## Croudsourcing updates
+Maybe an ask containing `!update` and `name is on twitchchannel's stream` could automatically draft a post with the update for `name is on twitch`
+If like 3 non anons send the same thing it gets posted regardless
+If they include `!dontpost` or `!anon` or something their ask doesn't get published and they are thanked as "Anon".
+Maybe there could be a list of trusted people who immediatly get posted if they send an update. They wouldn't have any responsebilities but if they _do_ report it gets posted immediatly
+
+There could also be `!update` `!youtube` `specific link`
+`!tweet` `link to tweet`
 
 
-# Project Content
-
-## Posting to
-- Tumblr [api](https://www.tumblr.com/oauth/apps) (oauth2)
-  - using [pytumblr](https://github.com/tumblr/pytumblr)
-
-## Automated Updates
-- Twitter [api](https://developer.twitter.com/en/docs) (oauth2)
-  - using [tweepy](https://www.tweepy.org/)
-  - Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python)
-- Twitch [api](https://dev.twitch.tv/docs/api/) (oauth2)
-- Youtube [api](https://developers.google.com/youtube/v3)
-- Instagram [api](https://developers.facebook.com/docs/instagram-basic-display-api)
-  - ~~Stories are not supported :(~~
-  - but there _is_ an api for it: [link](https://instaloader.github.io/)
-- Reddit? [api](https://www.reddit.com/dev/api/)
-- Tiktok [api](https://developers.tiktok.com/doc/getting-started-ios-quickstart-objective-c/)
-  - [docs](https://dteather.com/TikTok-Api/docs/TikTokApi.html) for a python wrapper
 
 ## (Seemingly) Unautoupdatables
 - Ranmail
