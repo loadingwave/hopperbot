@@ -3,11 +3,11 @@ import random
 from asyncio import Queue
 from typing import List, Tuple, TypeAlias, Union
 
-from hoppertasks import TwitterTask, HopperTask
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from config import twitter_names
+from hopperbot.config import twitter_names
+from hopperbot.hoppertasks import HopperTask, TwitterTask
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
@@ -21,6 +21,7 @@ class TwitterListener(AsyncStreamingClient):
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
+        print("listener is connectred")
         logging.info("[Twitter] Listener is connected")
 
     async def on_response(self, response: Response) -> None:
@@ -30,6 +31,7 @@ class TwitterListener(AsyncStreamingClient):
             for error in errors:
                 logging.error(error)
             return
+        logging.info("[Twitter] {}".format(tweet))
         author = includes["users"][0]
         username = author["username"]
 
@@ -50,6 +52,7 @@ class TwitterListener(AsyncStreamingClient):
 
         task = TwitterTask(content, url, identifier, thread_depth, thread_depth)
 
+        logging.info("[Twitter] Queued tweet")
         await self.queue.put(task)
 
     async def get_thread(
