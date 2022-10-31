@@ -5,9 +5,11 @@ from typing import TypeAlias, Union, List
 
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
+from pytumblr2 import TumblrRestClient as TumblrApi
 
-from hopperbot.secrets import twitter_keys
+from hopperbot.secrets import twitter_keys, tumblr_keys
 from hopperbot.twitter import TwitterListener
+from hopperbot.renderer import Renderer
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
@@ -45,6 +47,12 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
     return twitter_client.filter(expansions=expansions, media_fields=media_fields)
 
 
+async def setup_tumblr(queue: Queue[HopperTask]) -> None:
+    tumblr_api = TumblrApi(**tumblr_keys)
+    renderer = Renderer()
+    print(tumblr_api, renderer)
+
+
 async def main() -> None:
 
     root_logger = logging.getLogger()
@@ -53,6 +61,7 @@ async def main() -> None:
     queue: Queue[HopperTask] = Queue()
 
     twitter_task = setup_twitter(queue)
+
     printing_task = asyncio.create_task(printing())
 
     await printing_task
