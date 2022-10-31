@@ -3,29 +3,13 @@ import random
 from asyncio import Queue
 from typing import List, Tuple, TypeAlias, Union
 
-from main import HopperTask
+from main import TwitterTask, HopperTask
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
 from config import twitter_names
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
-
-
-class TwitterTask(HopperTask):
-    def __init__(
-        self,
-        content: List[ContentBlock],
-        url: str,
-        filename_prefix: str,
-        tweet_index: int,
-        thread_height: int,
-    ) -> None:
-        self.url = url
-        self.filename_prefix = filename_prefix
-        self.tweet_index = tweet_index
-        self.thread_height = thread_height
-        super().__init__(content)
 
 
 class TwitterListener(AsyncStreamingClient):
