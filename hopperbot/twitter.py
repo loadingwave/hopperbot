@@ -3,7 +3,7 @@ import random
 from asyncio import Queue
 from typing import List, Tuple, TypeAlias, Union
 
-from main import TwitterTask, HopperTask
+from hoppertasks import TwitterTask, HopperTask
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 

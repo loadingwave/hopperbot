@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 from asyncio import Queue
-from typing import TypeAlias, Union, List
 
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
@@ -11,31 +10,10 @@ from pytumblr2 import TumblrRestClient as TumblrApi
 from hopperbot.secrets import twitter_keys, tumblr_keys
 from hopperbot.twitter import TwitterListener
 from hopperbot.renderer import Renderer
+from hopperbot.hoppertasks import HopperTask, TwitterTask
 
-ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
 BLOGNAME = "Test37"
-
-
-class HopperTask:
-    def __init__(self, content: List[ContentBlock]) -> None:
-        self.content = content
-
-
-class TwitterTask(HopperTask):
-    def __init__(
-        self,
-        content: List[ContentBlock],
-        url: str,
-        filename_prefix: str,
-        tweet_index: int,
-        thread_height: int,
-    ) -> None:
-        self.url = url
-        self.filename_prefix = filename_prefix
-        self.tweet_index = tweet_index
-        self.thread_height = thread_height
-        super().__init__(content)
 
 
 async def printing() -> None:
