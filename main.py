@@ -1,12 +1,20 @@
 import asyncio
 import logging
 from asyncio import Queue
+from typing import TypeAlias, Union, List
 
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
 from hopperbot.secrets import twitter_keys
 from hopperbot.twitter import TwitterListener
+
+ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
+
+
+class HopperTask:
+    def __init__(self, content: List[ContentBlock]) -> None:
+        self.content = content
 
 
 async def printing() -> None:
@@ -15,7 +23,7 @@ async def printing() -> None:
         await asyncio.sleep(5)
 
 
-async def setup_twitter(queue: Queue[str]) -> asyncio.Task[None]:
+async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
     twitter_api = TwitterApi(**twitter_keys)
     twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
 
@@ -42,7 +50,7 @@ async def main() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
 
-    queue: Queue[str] = Queue()
+    queue: Queue[HopperTask] = Queue()
 
     twitter_task = setup_twitter(queue)
     printing_task = asyncio.create_task(printing())

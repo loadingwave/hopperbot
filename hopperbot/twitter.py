@@ -1,12 +1,37 @@
-from tweepy.asynchronous import AsyncStreamingClient, AsyncClient
-from tweepy import Response, Tweet
 import logging
-from asyncio import Queue, run
-from typing import Tuple, List
+import random
+from asyncio import Queue
+from typing import List, Tuple, TypeAlias, Union
+
+from main import HopperTask
+from tweepy import Response, Tweet
+from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
+
+from config import twitter_names
+
+ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
+
+
+class TwitterTask(HopperTask):
+    def __init__(
+        self,
+        content: List[ContentBlock],
+        url: str,
+        filename_prefix: str,
+        tweet_index: int,
+        thread_height: int,
+    ) -> None:
+        self.url = url
+        self.filename_prefix = filename_prefix
+        self.tweet_index = tweet_index
+        self.thread_height = thread_height
+        super().__init__(content)
 
 
 class TwitterListener(AsyncStreamingClient):
-    def __init__(self, queue: Queue[str], api: AsyncClient, bearer_token: str) -> None:
+    def __init__(
+        self, queue: Queue[HopperTask], api: AsyncClient, bearer_token: str
+    ) -> None:
         self.queue = queue
         self.api = api
         super().__init__(bearer_token)
@@ -20,8 +45,28 @@ class TwitterListener(AsyncStreamingClient):
         if errors:
             for error in errors:
                 logging.error(error)
-        else:
-            logging.error("Not implemented")
+            return
+        author = includes["users"][0]
+        username = author["username"]
+
+        (alt_texts, conversation, thread_depth) = await self.get_thread(tweet, username)
+
+        identifier = "tweet{}".format(tweet.id)
+        url = "https://twitter.com/{}/status/{}".format(username, tweet.id)
+
+        content = [self.header_block(author.id, conversation)]
+
+        for (i, alt_text) in enumerate(reversed(alt_texts)):
+            if i == thread_depth:
+                block = self.tweet_block("tweet{}".format(i), alt_text, url)
+            else:
+                block = self.tweet_block("tweet{}".format(i), alt_text)
+
+            content.append(block)
+
+        task = TwitterTask(content, url, identifier, thread_depth, thread_depth)
+
+        await self.queue.put(task)
 
     async def get_thread(
         self, tweet: Tweet, username: str
@@ -52,9 +97,8 @@ class TwitterListener(AsyncStreamingClient):
             ]
 
             # Get next tweet
-            response = await run(
-                self.api.get_tweet(id=referenced.id, expansions=expansions)
-            )
+            response = await self.api.get_tweet(id=referenced.id, expansions=expansions)
+
             if not isinstance(response, Response):
                 logging.error(
                     "Twitter API did not return a response while retrieving tweet {}".format(
@@ -76,3 +120,70 @@ class TwitterListener(AsyncStreamingClient):
             current_tweet = ref_tweet
 
         return (alt_texts, replied_to, thread_depth)
+
+    def header_block(self, user_id: int, replied_to: List[int] = []) -> ContentBlock:
+        (name, pronouns) = twitter_names[user_id]
+        if replied_to:
+            people = {
+                twitter_names.get(i, "someone")[0]
+                for i in replied_to
+                if i in twitter_names
+            }
+
+            if name in people:
+                people.remove(name)
+                people.add(random.choice(pronouns))
+
+            others = {i for i in replied_to if i not in twitter_names}
+
+            people_count = len(people)
+            people_iter = iter(people)
+
+            replies = next(people_iter)
+            people_count -= 1
+
+            while people_count > 1 or (people_count == 1 and len(others) != 0):
+                replies += ", " + next(people_iter)
+                people_count -= 1
+
+            if len(others) >= 2:
+                replies += " and some others"
+            elif len(others) == 1:
+                replies += " and someone else"
+            elif people_count > 0:
+                replies += " and {}".format(next(people_iter))
+
+            return {
+                "type": "text",
+                "text": "{} replied to {} on Twitter!".format(name, replies),
+            }
+        else:
+            return {
+                "type": "text",
+                "text": "{} posted on Twitter!".format(name),
+            }
+
+    def tweet_block(
+        self, identifier: str, alt_text: str, url: Union[str, None] = None
+    ) -> ContentBlock:
+        block: ContentBlock = {
+            "type": "image",
+            "media": [
+                {
+                    "type": "image/png",
+                    "identifier": identifier,
+                }
+            ],
+            "alt_text": alt_text,
+        }
+
+        if url is None:
+            return block
+        else:
+            block["attribution"] = {
+                "type": "app",
+                "url": url,
+                "app_name": "Twitter",
+                "display_text": "View on Twitter",
+            }
+            return block
