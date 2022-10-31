@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from asyncio import Queue
 from typing import TypeAlias, Union, List
 
@@ -8,10 +9,12 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 from pytumblr2 import TumblrRestClient as TumblrApi
 
 from hopperbot.secrets import twitter_keys, tumblr_keys
-from hopperbot.twitter import TwitterListener
+from hopperbot.twitter import TwitterListener, TwitterTask
 from hopperbot.renderer import Renderer
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
+
+BLOGNAME = "Test37"
 
 
 class HopperTask:
@@ -50,7 +53,28 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
 async def setup_tumblr(queue: Queue[HopperTask]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
     renderer = Renderer()
-    print(tumblr_api, renderer)
+    while True:
+        t = await queue.get()
+        if isinstance(t, TwitterTask):
+            filenames = await renderer.render_tweets(
+                t.url, t.filename_prefix, t.tweet_index, t.thread_height
+            )
+            media_sources = {
+                "tweet{}".format(i): filename for (i, filename) in enumerate(filenames)
+            }
+            response = tumblr_api.create_post(
+                blogname=BLOGNAME,
+                content=t.content,
+                tags=["hp.automated", "hp.twitter"],
+                media_sources=media_sources,
+            )
+
+            logging.debug("[Tumblr] {}".format(response))
+
+            for filename in filenames:
+                os.remove(filename)
+        else:
+            logging.warning("[Tumblr] unrecognised HopperTask")
 
 
 async def main() -> None:
@@ -61,11 +85,13 @@ async def main() -> None:
     queue: Queue[HopperTask] = Queue()
 
     twitter_task = setup_twitter(queue)
+    tumblr_task = setup_tumblr(queue)
 
     printing_task = asyncio.create_task(printing())
 
     await printing_task
     await twitter_task
+    await tumblr_task
 
 
 if __name__ == "__main__":

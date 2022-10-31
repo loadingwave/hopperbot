@@ -37,7 +37,7 @@ class TwitterListener(AsyncStreamingClient):
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
-        logging.info("TwitterListener is connected")
+        logging.info("[Twitter] Listener is connected")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
@@ -101,7 +101,7 @@ class TwitterListener(AsyncStreamingClient):
 
             if not isinstance(response, Response):
                 logging.error(
-                    "Twitter API did not return a response while retrieving tweet {}".format(
+                    "[Twitter] API did not return a response while retrieving tweet {}".format(
                         referenced.id
                     )
                 )
@@ -110,7 +110,7 @@ class TwitterListener(AsyncStreamingClient):
             (ref_tweet, ref_includes, ref_errors, _) = response
             if ref_errors:
                 for error in ref_errors:
-                    logging.error(error)
+                    logging.error("[Twitter] {}".format(error))
                 break
 
             ref_author = ref_includes["users"][0]
