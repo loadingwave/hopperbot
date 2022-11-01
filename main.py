@@ -16,9 +16,9 @@ from hopperbot.twitter import TwitterListener
 
 
 # Included for debugging purposes
-async def printing() -> None:
+async def printing(queue: Queue[Update]) -> None:
     while True:
-        logging.debug("[Main] ...")
+        logging.info("[Main] Queue contents: {}".format(queue))
         await asyncio.sleep(5)
 
 
@@ -103,12 +103,15 @@ async def main() -> None:
     # else is to be done, tumblr posts whatever is in the queue to tumblr
     queue: Queue[Update] = Queue()
 
-    twitter_task = await setup_twitter(queue)
-    logging.debug("[Main] Starting Twitter task")
-
     tumblr_task = asyncio.create_task(setup_tumblr(queue))
     logging.debug("[Main] Starting Tumblr task")
 
+    twitter_task = await setup_twitter(queue)
+    logging.debug("[Main] Starting Twitter task")
+
+    printing_task = printing(queue)
+
+    await printing_task
     await twitter_task
     await tumblr_task
 
