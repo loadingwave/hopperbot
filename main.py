@@ -19,7 +19,7 @@ from hopperbot.twitter import TwitterListener
 # Included for debugging purposes
 async def printing(queue: Queue[Update]) -> None:
     while True:
-        logging.info("[Main] Queue contents: {}".format(queue))
+        logging.info(f"[Main] Queue empty: {queue.empty()}")
         await asyncio.sleep(5)
 
 
