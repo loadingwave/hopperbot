@@ -52,6 +52,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     logging.debug("[Tumblr] Initialized renderer")
 
     while True:
+        logging.info("[Tumblr] trying to get task...")
         t = await queue.get()
         logging.info('[Tumblr] consuming task "{}"'.format(t.identifier))
 
