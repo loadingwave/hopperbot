@@ -54,7 +54,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     while True:
         logging.debug("[Tumblr] Fetching task...")
         t = await queue.get()
-        logging.info('[Tumblr] consuming task "{}"'.format(t.identifier))
+        logging.info(f'[Tumblr] consuming task "{t.identifier}"')
 
         if isinstance(t, TwitterUpdate):
             # Rendering has to be blocking because the external webdriver is a black box
@@ -63,7 +63,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
             )
 
             media_sources = {
-                "tweet{}".format(i): filename for (i, filename) in enumerate(filenames)
+                f"tweet{i}": filename for (i, filename) in enumerate(filenames)
             }
 
             response = tumblr_api.create_post(
@@ -74,17 +74,15 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
             )
 
             if "meta" in response:
-                logging.error("[Tumblr] {}".format(response))
+                logging.error(f"[Tumblr] {response}")
             else:
-                logging.debug("[Tumblr] {}".format(response))
+                logging.debug(f"[Tumblr] {response}")
 
             # After the files have been uploaded to Tumblr, we don't want them to gobble up our memory
             for filename in filenames:
                 os.remove(filename)
         else:
-            logging.warning(
-                '[Tumblr] unrecognised HopperTask "{}"'.format(t.identifier)
-            )
+            logging.warning(f'[Tumblr] unrecognised HopperTask "{t.identifier}"')
         queue.task_done()
 
 

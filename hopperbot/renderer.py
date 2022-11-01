@@ -76,7 +76,7 @@ class Renderer(Chrome):
                 # Because we scrolled we now need to relocate the tweet
                 tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i))
 
-            filename = "{}-{}.png".format(filename_prefix, i)
+            filename = f"{filename_prefix}-{i}.png"
             tweet_element.screenshot(filename)
             filenames.append(filename)
 

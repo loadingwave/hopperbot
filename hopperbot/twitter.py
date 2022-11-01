@@ -34,35 +34,35 @@ class TwitterListener(AsyncStreamingClient):
                 logging.error(error)
             return
 
-        logging.debug("[Twitter] {}".format(tweet))
+        logging.debug(f"[Twitter] {tweet}")
         author = includes["users"][0]
         username = author["username"]
 
         (alt_texts, conversation, thread_depth) = await self.get_thread(tweet, username)
 
-        identifier = "tweet{}".format(tweet.id)
-        url = "https://twitter.com/{}/status/{}".format(username, tweet.id)
+        identifier = f"tweet{tweet.id}"
+        url = f"https://twitter.com/{username}/status/{tweet.id}"
 
         content = [self.header_block(author.id, conversation)]
 
         for (i, alt_text) in enumerate(reversed(alt_texts)):
             # We only add the source url to the last tweet
             if i == thread_depth - 1:
-                block = self.tweet_block("tweet{}".format(i), alt_text, url)
+                block = self.tweet_block(f"tweet{i}", alt_text, url)
             else:
-                block = self.tweet_block("tweet{}".format(i), alt_text)
+                block = self.tweet_block(f"tweet{i}", alt_text)
 
             content.append(block)
 
         update = TwitterUpdate(content, url, identifier, thread_depth, thread_depth)
 
         await self.queue.put(update)
-        logging.info('[Twitter] produced task "{}"'.format(update.identifier))
+        logging.info(f'[Twitter] produced task "{update.identifier}"')
 
     async def get_thread(
         self, tweet: Tweet, username: str
     ) -> Tuple[List[str], List[int], int]:
-        alt_texts = ["Tweet by @{}: {}".format(username, tweet.text)]
+        alt_texts = [f"Tweet by @{username}: {tweet.text}"]
         replied_to: List[int] = []
         thread_depth = 1
 
@@ -95,22 +95,18 @@ class TwitterListener(AsyncStreamingClient):
 
             if not isinstance(response, Response):
                 logging.error(
-                    "[Twitter] API did not return a response while fetching tweet {}".format(
-                        referenced.id
-                    )
+                    f"[Twitter] API did not return a response while fetching tweet {referenced.id}"
                 )
                 break
 
             (ref_tweet, ref_includes, ref_errors, _) = response
             if ref_errors:
                 for error in ref_errors:
-                    logging.error("[Twitter] {}".format(error))
+                    logging.error(f"[Twitter] {error}")
                 break
 
             ref_author = ref_includes["users"][0]
-            alt_texts.append(
-                "Tweet by @{}: {}".format(ref_author["username"], ref_tweet.text)
-            )
+            alt_texts.append(f'Tweet by @{ref_author["username"]}: {ref_tweet.text}')
             current_tweet = ref_tweet
 
         return (alt_texts, replied_to, thread_depth)
@@ -145,16 +141,13 @@ class TwitterListener(AsyncStreamingClient):
             elif len(others) == 1:
                 replies += " and someone else"
             elif people_count > 0:
-                replies += " and {}".format(next(people_iter))
+                replies += f" and {next(people_iter)}"
 
-            return {
-                "type": "text",
-                "text": "{} replied to {} on Twitter!".format(name, replies),
-            }
+            return {"type": "text", "text": f"{name} replied to {replies} on Twitter!"}
         else:
             return {
                 "type": "text",
-                "text": "{} posted on Twitter!".format(name),
+                "text": f"{name} posted on Twitter!",
             }
 
     def tweet_block(
