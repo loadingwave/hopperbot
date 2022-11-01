@@ -46,7 +46,7 @@ async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
 
 async def setup_tumblr(queue: Queue[Update]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
-    logging.debug("[Tumblr] Initialized Tumblr api")
+    logging.info("[Tumblr] Initialized Tumblr api")
     renderer = Renderer()
     logging.debug("[Tumblr] Initialized renderer")
 

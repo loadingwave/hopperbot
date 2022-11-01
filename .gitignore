@@ -166,3 +166,4 @@ secrets.py
 *.png
 response.txt
 StreamResponse
+hopperbot.service
