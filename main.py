@@ -4,22 +4,22 @@ import os
 import sys
 from asyncio import Queue
 
+from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
-from pytumblr2 import TumblrRestClient as TumblrApi
 
-from hopperbot.secrets import twitter_keys, tumblr_keys
-from hopperbot.twitter import TwitterListener
-from hopperbot.renderer import Renderer
+from hopperbot.config import updatables
 from hopperbot.hoppertasks import HopperTask, TwitterTask
+from hopperbot.renderer import Renderer
+from hopperbot.secrets import tumblr_keys, twitter_keys
+from hopperbot.twitter import TwitterListener
 
-
-BLOGNAME = "Test37"
+BLOGNAME = "test37"
 
 
 async def printing() -> None:
-    for i in range(50):
-        print("[Printing] ", i)
+    while True:
+        logging.info("[Main] ...")
         await asyncio.sleep(5)
 
 
@@ -27,11 +27,11 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
     twitter_api = TwitterApi(**twitter_keys)
     twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
 
-    rule = StreamRule(
-        "from:space_stew OR from:tapwaterthomas OR from:Etherealbro_", "rule1"
+    ranboo_rule = StreamRule(
+        " OR ".join(map(lambda x: "from:" + x, updatables)), "ranboo"
     )
 
-    await twitter_client.add_rules(rule)
+    await twitter_client.add_rules(ranboo_rule)
 
     expansions = [
         "author_id",
@@ -47,13 +47,18 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
 
 async def setup_tumblr(queue: Queue[HopperTask]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
+    logging.info("[Tumblr] Initialized Tumblr api")
     renderer = Renderer()
+    logging.info("[Tumblr] Initialized renderer")
     while True:
         t = await queue.get()
+        logging.info("[Tumblr] Got task")
         if isinstance(t, TwitterTask):
-            filenames = await renderer.render_tweets(
+            # Rendering has to be blocking because the external webdriver is a black box
+            filenames = renderer.render_tweets(
                 t.url, t.filename_prefix, t.tweet_index, t.thread_height
             )
+            logging.info("[Tumblr] filenames: {}".format(filenames))
             media_sources = {
                 "tweet{}".format(i): filename for (i, filename) in enumerate(filenames)
             }
@@ -64,7 +69,7 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
                 media_sources=media_sources,
             )
 
-            logging.debug("[Tumblr] {}".format(response))
+            logging.info("[Tumblr] {}".format(response))
 
             for filename in filenames:
                 os.remove(filename)
@@ -75,10 +80,10 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
 async def main() -> None:
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.INFO)
 
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
@@ -87,8 +92,11 @@ async def main() -> None:
 
     queue: Queue[HopperTask] = Queue()
 
-    twitter_task = setup_twitter(queue)
-    tumblr_task = setup_tumblr(queue)
+    logging.info("[Main] Setup Logger")
+    twitter_task = await setup_twitter(queue)
+    logging.info("[Main] Started Twitter task")
+    tumblr_task = asyncio.create_task(setup_tumblr(queue))
+    logging.info("[Main] Start Tumblr task")
 
     printing_task = asyncio.create_task(printing())
 

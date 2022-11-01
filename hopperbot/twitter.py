@@ -6,7 +6,7 @@ from typing import List, Tuple, TypeAlias, Union
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from hopperbot.config import twitter_names
+from hopperbot.config import twitter_data
 from hopperbot.hoppertasks import HopperTask, TwitterTask
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
@@ -21,8 +21,10 @@ class TwitterListener(AsyncStreamingClient):
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
-        print("listener is connectred")
         logging.info("[Twitter] Listener is connected")
+
+    async def on_disconnect(self) -> None:
+        logging.warning("[Twitter] Listener disconnected")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
@@ -52,8 +54,8 @@ class TwitterListener(AsyncStreamingClient):
 
         task = TwitterTask(content, url, identifier, thread_depth, thread_depth)
 
-        logging.info("[Twitter] Queued tweet")
         await self.queue.put(task)
+        logging.info("[Twitter] Queued tweet")
 
     async def get_thread(
         self, tweet: Tweet, username: str
@@ -88,7 +90,7 @@ class TwitterListener(AsyncStreamingClient):
 
             if not isinstance(response, Response):
                 logging.error(
-                    "[Twitter] API did not return a response while retrieving tweet {}".format(
+                    "[Twitter] API did not return a response while fetching tweet {}".format(
                         referenced.id
                     )
                 )
@@ -109,19 +111,19 @@ class TwitterListener(AsyncStreamingClient):
         return (alt_texts, replied_to, thread_depth)
 
     def header_block(self, user_id: int, replied_to: List[int] = []) -> ContentBlock:
-        (name, pronouns) = twitter_names[user_id]
+        (name, pronouns) = twitter_data[user_id]
         if replied_to:
             people = {
-                twitter_names.get(i, "someone")[0]
+                twitter_data.get(i, "someone")[0]
                 for i in replied_to
-                if i in twitter_names
+                if i in twitter_data
             }
 
             if name in people:
                 people.remove(name)
                 people.add(random.choice(pronouns))
 
-            others = {i for i in replied_to if i not in twitter_names}
+            others = {i for i in replied_to if i not in twitter_data}
 
             people_count = len(people)
             people_iter = iter(people)

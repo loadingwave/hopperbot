@@ -1,12 +1,11 @@
+from time import sleep
+from typing import List
+
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-
-from typing import List
-
-from time import sleep
 
 
 class Renderer(Chrome):
@@ -23,7 +22,7 @@ class Renderer(Chrome):
         self.set_window_position(0, 0)
         self.set_window_size(2000, 2000)
 
-    async def render_tweets(
+    def render_tweets(
         self, url: str, filename_prefix: str, tweet_index: int, thread_height: int = 1
     ) -> List[str]:
         """Renders a tweet, and the tweets it was responding to

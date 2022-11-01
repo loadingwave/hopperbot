@@ -1,4 +1,4 @@
-from typing import TypeAlias, Union, List
+from typing import List, TypeAlias, Union
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
