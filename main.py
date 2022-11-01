@@ -8,30 +8,27 @@ from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import updatables
-from hopperbot.hoppertasks import HopperTask, TwitterTask
+from hopperbot.config import blogname, updatables
+from hopperbot.hoppertasks import Update, TwitterUpdate
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.twitter import TwitterListener
 
-BLOGNAME = "test37"
 
-
+# Included for debugging purposes
 async def printing() -> None:
     while True:
         logging.debug("[Main] ...")
         await asyncio.sleep(5)
 
 
-async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
+async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
     twitter_api = TwitterApi(**twitter_keys)
     twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
 
-    ranboo_rule = StreamRule(
-        " OR ".join(map(lambda x: "from:" + x, updatables)), "ranboo"
-    )
+    rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, updatables)), "ranboo")
 
-    await twitter_client.add_rules(ranboo_rule)
+    await twitter_client.add_rules(rule)
 
     expansions = [
         "author_id",
@@ -42,28 +39,33 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
 
     media_fields = ["alt_text", "type", "url"]
 
+    # AsyncStreamingClient.filter() returns a task, that is why the return type
+    # is "Task[None]" and not "None"
     return twitter_client.filter(expansions=expansions, media_fields=media_fields)
 
 
-async def setup_tumblr(queue: Queue[HopperTask]) -> None:
+async def setup_tumblr(queue: Queue[Update]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
     logging.debug("[Tumblr] Initialized Tumblr api")
     renderer = Renderer()
     logging.debug("[Tumblr] Initialized renderer")
+
     while True:
         t = await queue.get()
-        logging.info("[Tumblr] Got task")
-        if isinstance(t, TwitterTask):
+        logging.info('[Tumblr] consuming task "{}"'.format(t.identifier))
+
+        if isinstance(t, TwitterUpdate):
             # Rendering has to be blocking because the external webdriver is a black box
             filenames = renderer.render_tweets(
-                t.url, t.filename_prefix, t.tweet_index, t.thread_height
+                t.url, t.identifier, t.tweet_index, t.thread_height
             )
-            logging.debug("[Tumblr] filenames: {}".format(filenames))
+
             media_sources = {
                 "tweet{}".format(i): filename for (i, filename) in enumerate(filenames)
             }
+
             response = tumblr_api.create_post(
-                blogname=BLOGNAME,
+                blogname=blogname,
                 content=t.content,
                 tags=["hp.automated", "hp.twitter"],
                 media_sources=media_sources,
@@ -74,36 +76,39 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
             else:
                 logging.debug("[Tumblr] {}".format(response))
 
+            # After the files have been uploaded to Tumblr, we don't want them to gobble up our memory
             for filename in filenames:
                 os.remove(filename)
         else:
-            logging.warning("[Tumblr] unrecognised HopperTask")
+            logging.warning(
+                '[Tumblr] unrecognised HopperTask "{}"'.format(t.identifier)
+            )
 
 
 async def main() -> None:
 
+    # Setup logging (this prints to stderr, to redirect use >2 "filename" on Linux)
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.INFO)
 
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 
-    queue: Queue[HopperTask] = Queue()
+    # The work queue, things to update on are put in the queue, and when nothing
+    # else is to be done, tumblr posts whatever is in the queue to tumblr
+    queue: Queue[Update] = Queue()
 
-    logging.debug("[Main] Setup Logger")
     twitter_task = await setup_twitter(queue)
-    logging.debug("[Main] Started Twitter task")
+    logging.debug("[Main] Starting Twitter task")
+
     tumblr_task = asyncio.create_task(setup_tumblr(queue))
-    logging.debug("[Main] Start Tumblr task")
+    logging.debug("[Main] Starting Tumblr task")
 
-    printing_task = asyncio.create_task(printing())
-
-    await printing_task
     await twitter_task
     await tumblr_task
 

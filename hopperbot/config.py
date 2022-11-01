@@ -25,3 +25,5 @@ twitter_data = {
 }
 
 updatables = ["ranboosaysstuff", "ranaltboo", "whenranboolive"]
+
+blogname = "test37"

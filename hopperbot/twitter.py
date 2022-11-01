@@ -1,22 +1,22 @@
 import logging
 import random
 from asyncio import Queue
-from typing import List, Tuple, TypeAlias, Union
+from typing import List, Tuple, Union
 
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
 from hopperbot.config import twitter_data
-from hopperbot.hoppertasks import HopperTask, TwitterTask
-
-ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
+from hopperbot.hoppertasks import ContentBlock, Update, TwitterUpdate
 
 
 class TwitterListener(AsyncStreamingClient):
     def __init__(
-        self, queue: Queue[HopperTask], api: AsyncClient, bearer_token: str
+        self, queue: Queue[Update], api: AsyncClient, bearer_token: str
     ) -> None:
         self.queue = queue
+
+        # To be able to follow reblog trails, we need to be able to lookup tweets
         self.api = api
         super().__init__(bearer_token)
 
@@ -33,7 +33,8 @@ class TwitterListener(AsyncStreamingClient):
             for error in errors:
                 logging.error(error)
             return
-        logging.info("[Twitter] {}".format(tweet))
+
+        logging.debug("[Twitter] {}".format(tweet))
         author = includes["users"][0]
         username = author["username"]
 
@@ -45,17 +46,18 @@ class TwitterListener(AsyncStreamingClient):
         content = [self.header_block(author.id, conversation)]
 
         for (i, alt_text) in enumerate(reversed(alt_texts)):
-            if i == thread_depth:
+            # We only add the source url to the last tweet
+            if i == thread_depth - 1:
                 block = self.tweet_block("tweet{}".format(i), alt_text, url)
             else:
                 block = self.tweet_block("tweet{}".format(i), alt_text)
 
             content.append(block)
 
-        task = TwitterTask(content, url, identifier, thread_depth, thread_depth)
+        update = TwitterUpdate(content, url, identifier, thread_depth, thread_depth)
 
-        await self.queue.put(task)
-        logging.info("[Twitter] Queued tweet")
+        await self.queue.put(update)
+        logging.info('[Twitter] produced task "{}"'.format(update.identifier))
 
     async def get_thread(
         self, tweet: Tweet, username: str
