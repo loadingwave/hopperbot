@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from hopperbot.config import twitter_data_debug as twitter_data
+from hopperbot.config import twitter_data
 from hopperbot.hoppertasks import ContentBlock, Update, TwitterUpdate
 
 
@@ -72,6 +72,9 @@ class TwitterListener(AsyncStreamingClient):
             thread_depth += 1
 
             # Prepare tweet request
+            if not current_tweet.referenced_tweets:
+                break
+
             referenced = next(
                 filter(
                     lambda t: t.type == "replied_to", current_tweet.referenced_tweets

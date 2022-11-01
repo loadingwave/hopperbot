@@ -22,9 +22,8 @@ It seems sqlite is by far the easiest as there are build in python libaries for 
 I'm using [this](https://mitelman.engineering/blog/python-best-practice/automating-python-best-practices-for-a-new-project/) setup right now. It is rather strict, but I found that works really well for me
 
 ### Setup selenium
-Imports like selenium are automatically handled with poetry, however to use selenium we do need to install geckodriver and make sure chrome is intalled:
+Imports like selenium are automatically handled with poetry, however to use selenium we do need to install chromedriver and make sure chrome is intalled:
 
-I had to switch from Firefox to Chrome, because Firefox did not have suport for seleniums Scrolling actions :(
 
 [source](https://skolo.online/documents/webscrapping/#step-1-download-chrome)
 ```
@@ -34,13 +33,14 @@ sudo apt-get install -f
 ```
 
 run `google-chrome --version` to get the version number
+My version number didn't match up entirely. If it doesn't work, look up [here](https://chromedriver.chromium.org/downloads) what version number you should use.
 
 ```
 wget https://chromedriver.storage.googleapis.com/<version-number>/chromedriver_linux64.zip
 unzip chromedriver_linux64.zip
+chmod +x chromedriver
 sudo mv chromedriver /usr/bin/chromedriver
 sudo chown root:root /usr/bin/chromedriver
-chmod +x geckodriver
 ```
 
 # Tumblr

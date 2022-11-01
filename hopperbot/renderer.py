@@ -1,5 +1,6 @@
 from time import sleep
 from typing import List
+import logging
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -16,6 +17,10 @@ class Renderer(Chrome):
     TWEET_XPATH = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]"
 
     def __init__(self) -> None:
+
+        logger = logging.getLogger("selenium.webdriver.remote.remote_connection")
+        logger.setLevel(logging.WARNING)
+
         options = Options()
         options.headless = True
         super().__init__(options=options)
