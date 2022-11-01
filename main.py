@@ -19,7 +19,7 @@ BLOGNAME = "test37"
 
 async def printing() -> None:
     while True:
-        logging.info("[Main] ...")
+        logging.debug("[Main] ...")
         await asyncio.sleep(5)
 
 
@@ -47,9 +47,9 @@ async def setup_twitter(queue: Queue[HopperTask]) -> asyncio.Task[None]:
 
 async def setup_tumblr(queue: Queue[HopperTask]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
-    logging.info("[Tumblr] Initialized Tumblr api")
+    logging.debug("[Tumblr] Initialized Tumblr api")
     renderer = Renderer()
-    logging.info("[Tumblr] Initialized renderer")
+    logging.debug("[Tumblr] Initialized renderer")
     while True:
         t = await queue.get()
         logging.info("[Tumblr] Got task")
@@ -58,7 +58,7 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
             filenames = renderer.render_tweets(
                 t.url, t.filename_prefix, t.tweet_index, t.thread_height
             )
-            logging.info("[Tumblr] filenames: {}".format(filenames))
+            logging.debug("[Tumblr] filenames: {}".format(filenames))
             media_sources = {
                 "tweet{}".format(i): filename for (i, filename) in enumerate(filenames)
             }
@@ -69,7 +69,10 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
                 media_sources=media_sources,
             )
 
-            logging.info("[Tumblr] {}".format(response))
+            if "meta" in response:
+                logging.error("[Tumblr] {}".format(response))
+            else:
+                logging.debug("[Tumblr] {}".format(response))
 
             for filename in filenames:
                 os.remove(filename)
@@ -80,10 +83,10 @@ async def setup_tumblr(queue: Queue[HopperTask]) -> None:
 async def main() -> None:
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
@@ -92,11 +95,11 @@ async def main() -> None:
 
     queue: Queue[HopperTask] = Queue()
 
-    logging.info("[Main] Setup Logger")
+    logging.debug("[Main] Setup Logger")
     twitter_task = await setup_twitter(queue)
-    logging.info("[Main] Started Twitter task")
+    logging.debug("[Main] Started Twitter task")
     tumblr_task = asyncio.create_task(setup_tumblr(queue))
-    logging.info("[Main] Start Tumblr task")
+    logging.debug("[Main] Start Tumblr task")
 
     printing_task = asyncio.create_task(printing())
 

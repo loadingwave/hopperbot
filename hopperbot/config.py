@@ -1,22 +1,11 @@
-# twitter_data = {
-#     1478064563358740481: ("Thomas", ["himself", "themselves"]),
-#     882783277: ("Thijs", ["himself"]),
-#     1487770624529518601: ("Jolene", ["herself", "themselves"]),
-#     785517623626887169: ("Thomas", ["himself", "themselves"]),
-# }
+twitter_data_debug = {
+    1478064563358740481: ("Thomas", ["himself", "themselves"]),
+    882783277: ("Thijs", ["himself"]),
+    1487770624529518601: ("Jolene", ["herself", "themselves"]),
+    785517623626887169: ("Thomas", ["himself", "themselves"]),
+}
 
-# Philza
-# Purpled
-# Billzo
-# MCC
-# Scott Smajor
-# Charlie Slimecicle
-# Sneegsnag
-# Quackity
-
-# Minecraft
-# Shelby
-
+updatables_debug = ["space_stew", "tapwaterthomas", "Etherealbro_"]
 
 twitter_data = {
     1222961028926824450: ("Ranboo", ["himself", "themselves"]),
