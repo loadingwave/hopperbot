@@ -52,7 +52,6 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     logging.debug("[Tumblr] Initialized renderer")
 
     while True:
-        logging.info("[Tumblr] trying to get task...")
         t = await queue.get()
         logging.info('[Tumblr] consuming task "{}"'.format(t.identifier))
 
@@ -85,6 +84,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
             logging.warning(
                 '[Tumblr] unrecognised HopperTask "{}"'.format(t.identifier)
             )
+        queue.task_done()
 
 
 async def main() -> None:
@@ -111,9 +111,6 @@ async def main() -> None:
     twitter_task = await setup_twitter(queue)
     logging.debug("[Main] Starting Twitter task")
 
-    printing_task = printing(queue)
-
-    await printing_task
     await twitter_task
     await tumblr_task
 
