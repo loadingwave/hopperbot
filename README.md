@@ -1,86 +1,76 @@
 # Hopperbot
-bc hopper takes something from one place to another
+Because a hopper takes something from one place to another, and this is updateing on minecraft youtubers
+
 # Project Design
 ## Language
-I kinda really want to do this in rust, bc I really like it, but it seems there is basically no support for this type of api for rust
-I am using python, loads of libraries are already written for python, besides, Rust is more aimed at system level stuf, this isn't really that.
+I am using python, loads of libraries are already written for python, so there is a lot of support available.
+
 ## Design
-I want this to be datadriven:
-I can put in a file with some people and their socialmedia handles and the program uses that to figure out what to update on
-
-## Setup
-I'm using [this](https://mitelman.engineering/blog/python-best-practice/automating-python-best-practices-for-a-new-project/) setup right now. Really quite usefull :]
-
-### Setup selenium
-Imports like selenium are automatically handled with this, however to use selenium we do need to install geckodriver and make sure firefox is intalled [src]:
-
-(https://askubuntu.com/questions/870530/how-to-install-geckodriver-in-ubuntu) get the link for the latest release at the [relase page](https://github.com/mozilla/geckodriver/releases). (at time of writing this is https://github.com/mozilla/geckodriver/releases/download/v0.31.0/geckodriver-v0.31.0-linux64.tar.gz)
-```
-wget <link to release>
-tar -xvzf <tarbal you just downloaded>
-chmod +x geckodriver
-sudo mv geckodriver /usr/local/bin/
-```
-I also had to install firefox: `sudo apt install firefox`
-
-#TODO: Switched to Chrome for scrolling support, update setup
-
-## General
+### Data driven
+As of yet very rudamentery, but in config.py you can specify the twitter handles you want to update on
 
 ### Reblogs
+Work in progress:
 I want to do that cool thing where ranboo-updates will reblog from tommy-updates and say "Ranboo replied to Tommy"
 
-To do this I will need to store a list of (twitter) id's and link them to tumblr reblog id's.
-I think I will also need to store the blog/person this is for, just so that I can have the correct name in the text
+To do this I will need to store a list of (twitter) ids and link them to tumblr reblog id's.
+I think I will also need to store the blog/person this is for, just so that I can have the correct name in the text. It would also be good to store the thread index of that tweet.
 
-It would also be good to store the thread index of that tweet
+It seems sqlite is by far the easiest as there are build in python libaries for it.
 
-It seems sqlite is by far the easiest as it is build in to python
+## Setup
+I'm using [this](https://mitelman.engineering/blog/python-best-practice/automating-python-best-practices-for-a-new-project/) setup right now. It is rather strict, but I found that works really well for me
 
+### Setup selenium
+Imports like selenium are automatically handled with poetry, however to use selenium we do need to install geckodriver and make sure chrome is intalled:
 
-## Tumblr
+I had to switch from Firefox to Chrome, because Firefox did not have suport for seleniums Scrolling actions :(
+
+[source](https://skolo.online/documents/webscrapping/#step-1-download-chrome)
+```
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+sudo apt-get install -f
+```
+
+run `google-chrome --version` to get the version number
+
+```
+wget https://chromedriver.storage.googleapis.com/<version-number>/chromedriver_linux64.zip
+unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/bin/chromedriver
+sudo chown root:root /usr/bin/chromedriver
+chmod +x geckodriver
+```
+
+# Tumblr
 
 ### API
-- Tumblr [api](https://www.tumblr.com/oauth/apps)
-- using [pytumblr](https://github.com/tumblr/pytumblr)
-
-### Posting Images to tumblr
-~~This seems harder than it should be. There does not seem to be a way to do this automatically with pytumblr ór pytumblr2.~~
-
-~~From the tumblr api i gathered i need to do this as a multipart-encoded thing. I can do this with [requests](https://requests.readthedocs.io/en/latest/user/quickstart/#post-a-multipart-encoded-file)~~
-
-~~[Decode an Image](https://requests.readthedocs.io/en/latest/user/quickstart/#binary-response-content)~~
-
-I had to read the documentation for pytumblr2 better (whoops). Why is all python documentation inline??
+[Tumblr api](https://www.tumblr.com/oauth/apps) using [pytumblr2](https://github.com/nostalgebraist/pytumblr2)
 
 
 ## Twitter
 
 ### API
-Twitter [api](https://developer.twitter.com/en/docs) (oauth2)
-using [tweepy](https://www.tweepy.org/),
-
-
-### Async??
-Is currently blocking, there is also an async streaming client, that is probably better. I don't know how it works yet
-
-[asyncStreamingClient](https://docs.tweepy.org/en/stable/asyncstreamingclient.html)
+[Twitter api](https://developer.twitter.com/en/docs) using [tweepy](https://www.tweepy.org/),
 
 ### Screenshots
-Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python)
-Assumption: The xpath will stay the same
-All tweets will fit on one screen (might not happen) might have to scroll the element into view [stackoverflow](https://stackoverflow.com/questions/3401343/scroll-element-into-view-with-selenium)
-Let's assume a tweet is max 800 pixels high (crumbs tweet with picture is 788 px high).
-The header is 53 px high, the footer is 224 px, so in total we need to keep 277 px of extra space
+Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python).
 
-"A dictionary with the size and location of the element." <- from the documentation of WebElement.rect
-WHAT ARE THOSE PROPERTIES CALLED!! I DONT WANT TO HAVE TO USE TRIAL AND ERROR!!
+Assumptions about the layout of twitter:
+- The xpath for a tweet
+- The height of the header
+- The height of the footer
 
-### users
-Assumption: The first user in the includes.users is always the author
+These values can be found in renderer.py
+
+### Users
+Twitter api sends back information (username, displayname, etc) about all users involved in an includes block.
+I am assuming the _first_ user in includes.users is always the author.
 
 ## Twitch
 [api](https://dev.twitch.tv/docs/api/)
+
 Will only need a few things:
 - EventSub to stream start and end
 - EventSub to channel changed (for title changes)
@@ -89,13 +79,15 @@ Will only need a few things:
 
 ## Youtube
 [api](https://developers.google.com/youtube/v3)
+
 Subscription information is the only thing we need and is done trough pubsubhubbub ([link](https://developers.google.com/youtube/v3/guides/push_notifications))
+
 [link](youtube_push_notifications_to_discord_via) to reddit thread of someone who made a project with it. The github readme is very instructive too.
 
 ## Instagram
 [api](https://developers.facebook.com/docs/instagram-basic-display-api)
 ~~Stories are not supported :(~~
-but there _is_ an api for it: [link](https://instaloader.github.io/)
+but there _is_ an api for it: [link](https://instaloader.github.io/).
 Does have webhooks, but not for "user posted"
 
 ## Reddit
@@ -117,19 +109,10 @@ There could also be `!update` `!youtube` `specific link`
 `!tweet` `link to tweet`
 
 
-
-## (Seemingly) Unautoupdatables
+## (Seemingly) not updatable automatically
 - Ranmail
 - private twitters
-- _ is on _ stream!
+- _ is on _'s stream!
 - _ is in this video
 - _ tweeted about _
-- ...
--
-## CCs to update on
-- Tommy
-- Wilbur
-- Ranboo
-- Tubbo
-- Aimsey?
 - ...
