@@ -8,7 +8,8 @@ from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import blogname, updatables
+from hopperbot.config import blogname
+from hopperbot.config import updatables_debug as updatables
 from hopperbot.hoppertasks import Update, TwitterUpdate
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys

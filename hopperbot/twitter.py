@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from hopperbot.config import twitter_data
+from hopperbot.config import twitter_data_debug as twitter_data
 from hopperbot.hoppertasks import ContentBlock, Update, TwitterUpdate
 
 
