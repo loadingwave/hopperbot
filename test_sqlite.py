@@ -1,4 +1,5 @@
 import sqlite3 as sqlite
+
 from hopperbot.people import Person, adapt_person, convert_person
 
 

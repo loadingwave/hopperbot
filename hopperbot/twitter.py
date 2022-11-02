@@ -1,5 +1,4 @@
 import logging
-import random
 from asyncio import Queue
 from typing import List, Tuple, Union
 
@@ -8,6 +7,7 @@ from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
 from hopperbot.config import twitter_data
 from hopperbot.hoppertasks import ContentBlock, Update
+from hopperbot.people import NONE, Person
 
 
 class TwitterUpdate(Update):
@@ -27,32 +27,25 @@ class TwitterUpdate(Update):
 
 def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
     if user_id in twitter_data:
-        (name, pronouns) = twitter_data[user_id]
+        person = twitter_data[user_id]
     else:
-        # This situation should never happen, but the code does not prevent it from happening, so its better
-        # to add in a check for it in my opinion
-        name = "Someone"
-        pronouns = ["themself"]
+        # This situation should never happen, but the code does not prevent it from happening,
+        # so its better to add in a check for it in my opinion
+        person = Person("someone", [NONE])
 
     if replied_to:
-        # We can safely use twitter_data[i] because we check if i is in twitter_data
-        people = {twitter_data[i][0] for i in replied_to if i in twitter_data}
+        people = {twitter_data[id].name for id in replied_to if id in twitter_data}
 
-        if name in people:
-            people.remove(name)
-            # pronouns should never be empty, but better safe then sorry
-            if pronouns:
-                people.add(random.choice(pronouns))
-            else:
-                people.add("themself")
+        if person.name in people:
+            people.remove(person.name)
+            people.add(person.emself())
 
-        # These set operations are not the most efficient, but their size is very small, so it should be okay
-        others = {i for i in replied_to if i not in twitter_data}
+        others = sum(map(lambda id: (id in twitter_data), replied_to))
 
         if people:
-            if len(others) >= 2:
+            if others >= 2:
                 replies = ", ".join(people) + " and some others"
-            elif len(others) == 1:
+            elif others == 1:
                 replies = ", ".join(people) + " and someone else"
             elif len(people) == 1:
                 replies = people.pop()
@@ -61,19 +54,19 @@ def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
                 last = people.pop()
                 replies = ", ".join(people) + " and " + last
         else:
-            if len(others) >= 2:
+            if others >= 2:
                 replies = "some people"
-            elif len(others) == 1:
+            elif others == 1:
                 replies = "someone"
             else:
                 # This situation should never happen, but again, better to add in a check for it
                 replies = "no one"
 
-        return {"type": "text", "text": f"{name} replied to {replies} on Twitter!"}
+        return {"type": "text", "text": f"{person.name} replied to {replies} on Twitter!"}
     else:
         return {
             "type": "text",
-            "text": f"{name} posted on Twitter!",
+            "text": f"{person.name} posted on Twitter!",
         }
 
 
