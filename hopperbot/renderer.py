@@ -27,9 +27,7 @@ class Renderer(Chrome):
         self.set_window_position(0, 0)
         self.set_window_size(2000, 2000)
 
-    def render_tweets(
-        self, url: str, filename_prefix: str, tweet_index: int, thread_height: int = 1
-    ) -> List[str]:
+    def render_tweets(self, url: str, filename_prefix: str, tweet_index: int, thread_height: int = 1) -> List[str]:
         """Renders a tweet, and the tweets it was responding to
 
         :param url: The url of the tweet to be rendered

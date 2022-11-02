@@ -58,13 +58,9 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
 
         if isinstance(t, TwitterUpdate):
             # Rendering has to be blocking because the external webdriver is a black box
-            filenames = renderer.render_tweets(
-                t.url, t.identifier, t.tweet_index, t.thread_height
-            )
+            filenames = renderer.render_tweets(t.url, t.identifier, t.tweet_index, t.thread_height)
 
-            media_sources = {
-                f"tweet{i}": filename for (i, filename) in enumerate(filenames)
-            }
+            media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
             response = tumblr_api.create_post(
                 blogname=blogname,
