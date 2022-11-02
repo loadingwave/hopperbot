@@ -10,10 +10,10 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 
 from hopperbot.config import blogname
 from hopperbot.config import updatables
-from hopperbot.hoppertasks import Update, TwitterUpdate
+from hopperbot.hoppertasks import Update
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.twitter import TwitterListener
+from hopperbot.twitter import TwitterListener, TwitterUpdate
 
 
 # Included for debugging purposes
@@ -65,7 +65,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
             response = tumblr_api.create_post(
                 blogname=blogname,
                 content=t.content,
-                tags=["hp.automated", "hp.twitter"],
+                tags=["hb.automated", "hb.twitter"],
                 media_sources=media_sources,
             )
 
