@@ -7,7 +7,7 @@ from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
 from hopperbot.config import twitter_data
-from hopperbot.hoppertasks import ContentBlock, Update, TwitterUpdate
+from hopperbot.hoppertasks import ContentBlock, TwitterUpdate, Update
 
 
 class TwitterListener(AsyncStreamingClient):
@@ -25,18 +25,19 @@ class TwitterListener(AsyncStreamingClient):
 
     async def on_keep_alive(self) -> None:
         logging.info("[Twitter] Recieved keep alive")
+        return await super().on_keep_alive()
 
-    async def on_connection_error(self) -> None:
-        logging.error("[Twitter] Stream connection has errored or timed out")
+    # async def on_connection_error(self) -> None:
+    #     logging.error("[Twitter] Stream connection has errored or timed out")
 
-    async def on_disconnect_message(self, message: str) -> None:
-        logging.warning(f"[Twitter] Disconnected: {message}")
+    # async def on_disconnect_message(self, message: str) -> None:
+    #     logging.warning(f"[Twitter] Disconnected: {message}")
 
-    async def on_warning(self, notice: str) -> None:
-        logging.warning(f"[Twitter] Received stall warning: {notice}")
+    # async def on_warning(self, notice: str) -> None:
+    #     logging.warning(f"[Twitter] Received stall warning: {notice}")
 
-    async def on_disconnect(self) -> None:
-        logging.warning("[Twitter] Listener disconnected")
+    # async def on_disconnect(self) -> None:
+    #     logging.warning("[Twitter] Listener disconnected")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
