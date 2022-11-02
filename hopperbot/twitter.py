@@ -11,9 +11,7 @@ from hopperbot.hoppertasks import ContentBlock, TwitterUpdate, Update
 
 
 class TwitterListener(AsyncStreamingClient):
-    def __init__(
-        self, queue: Queue[Update], api: AsyncClient, bearer_token: str
-    ) -> None:
+    def __init__(self, queue: Queue[Update], api: AsyncClient, bearer_token: str) -> None:
         self.queue = queue
 
         # To be able to follow reblog trails, we need to be able to lookup tweets
@@ -72,9 +70,7 @@ class TwitterListener(AsyncStreamingClient):
         await self.queue.put(update)
         logging.info(f'[Twitter] produced task "{update.identifier}"')
 
-    async def get_thread(
-        self, tweet: Tweet, username: str
-    ) -> Tuple[List[str], List[int], int]:
+    async def get_thread(self, tweet: Tweet, username: str) -> Tuple[List[str], List[int], int]:
         alt_texts = [f"Tweet by @{username}: {tweet.text}"]
         replied_to: List[int] = []
         thread_depth = 1
@@ -88,11 +84,7 @@ class TwitterListener(AsyncStreamingClient):
             if not current_tweet.referenced_tweets:
                 break
 
-            referenced = next(
-                filter(
-                    lambda t: t.type == "replied_to", current_tweet.referenced_tweets
-                )
-            )
+            referenced = next(filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets))
             if not referenced:
                 break
 
@@ -107,9 +99,7 @@ class TwitterListener(AsyncStreamingClient):
             response = await self.api.get_tweet(id=referenced.id, expansions=expansions)
 
             if not isinstance(response, Response):
-                logging.error(
-                    f"[Twitter] API did not return a response while fetching tweet {referenced.id}"
-                )
+                logging.error(f"[Twitter] API did not return a response while fetching tweet {referenced.id}")
                 break
 
             (ref_tweet, ref_includes, ref_errors, _) = response
@@ -139,7 +129,11 @@ class TwitterListener(AsyncStreamingClient):
 
             if name in people:
                 people.remove(name)
-                people.add(random.choice(pronouns))
+                # pronouns should never be empty, but better safe then sorry
+                if pronouns:
+                    people.add(random.choice(pronouns))
+                else:
+                    people.add("themself")
 
             # These set operations are not the most efficient, but their size is very small, so it should be okay
             others = {i for i in replied_to if i not in twitter_data}
@@ -171,9 +165,7 @@ class TwitterListener(AsyncStreamingClient):
                 "text": f"{name} posted on Twitter!",
             }
 
-    def tweet_block(
-        self, identifier: str, alt_text: str, url: Union[str, None] = None
-    ) -> ContentBlock:
+    def tweet_block(self, identifier: str, alt_text: str, url: Union[str, None] = None) -> ContentBlock:
         block: ContentBlock = {
             "type": "image",
             "media": [

@@ -8,19 +8,19 @@ twitter_data_debug = {
 updatables_debug = ["space_stew", "tapwaterthomas", "Etherealbro_"]
 
 twitter_data = {
-    1222961028926824450: ("Ranboo", ["himself", "themselves"]),
-    1344189615134003201: ("Ranboo", ["himself", "themselves"]),
-    1523474396547100672: ("Ranboo", ["himself", "themselves"]),
+    1222961028926824450: ("Ranboo", ["himself", "themself"]),
+    1344189615134003201: ("Ranboo", ["himself", "themself"]),
+    1523474396547100672: ("Ranboo", ["himself", "themself"]),
     1032978119370723329: ("Tommy", ["himself"]),
     1373748437309653004: ("Tommy", ["himself"]),
-    1421863028866310150: ("Generation Loss", ["themselves"]),
+    1421863028866310150: ("Generation Loss", ["themself"]),
     1067355715004702720: (
         "Aimsey",
-        ["herself", "himself", "themselves", "xeyself", "starself"],
+        ["herself", "himself", "themself", "xeyself", "starself"],
     ),
     1342232185445744640: (
         "Aimsey",
-        ["herself", "himself", "themselves", "xeyself", "starself"],
+        ["herself", "himself", "themself", "xeyself", "starself"],
     ),
 }
 
