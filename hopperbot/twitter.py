@@ -23,6 +23,12 @@ class TwitterListener(AsyncStreamingClient):
     async def on_connect(self) -> None:
         logging.info("[Twitter] Listener is connected")
 
+    async def on_keep_alive(self) -> None:
+        logging.info("[Twitter] Recieved keep alive")
+
+    async def on_connection_error(self) -> None:
+        logging.error("[Twitter] Stream connection has errored or timed out")
+
     async def on_disconnect(self) -> None:
         logging.warning("[Twitter] Listener disconnected")
 
