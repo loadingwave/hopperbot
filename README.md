@@ -54,6 +54,8 @@ sudo chown root:root /usr/bin/chromedriver
 ### API
 [Twitter api](https://developer.twitter.com/en/docs) using [tweepy](https://www.tweepy.org/),
 
+I'm was getting a lot of disconnect errors, but [this](https://github.com/tweepy/tweepy/commit/51a5d61bfd6699ab844449698b34befd6a170857) to tweepy seems to have fixed that. This is on the dev branch, so that is why tweepy is now a git dependency.
+
 ### Screenshots
 Renders tweets using [selenium](https://stackoverflow.com/questions/68834123/convert-html-to-image-using-python).
 
