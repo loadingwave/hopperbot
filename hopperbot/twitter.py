@@ -29,6 +29,12 @@ class TwitterListener(AsyncStreamingClient):
     async def on_connection_error(self) -> None:
         logging.error("[Twitter] Stream connection has errored or timed out")
 
+    async def on_disconnect_message(self, message: str) -> None:
+        logging.warning(f"[Twitter] Disconnected: {message}")
+
+    async def on_warning(self, notice: str) -> None:
+        logging.warning(f"[Twitter] Received stall warning: {notice}")
+
     async def on_disconnect(self) -> None:
         logging.warning("[Twitter] Listener disconnected")
 
