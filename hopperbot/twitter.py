@@ -125,36 +125,44 @@ class TwitterListener(AsyncStreamingClient):
         return (alt_texts, replied_to, thread_depth)
 
     def header_block(self, user_id: int, replied_to: List[int] = []) -> ContentBlock:
-        (name, pronouns) = twitter_data[user_id]
+        if user_id in twitter_data:
+            (name, pronouns) = twitter_data[user_id]
+        else:
+            # This situation should never happen, but the code does not prevent it from happening, so its better
+            # to add in a check for it in my opinion
+            name = "Someone"
+            pronouns = ["themself"]
+
         if replied_to:
-            people = {
-                twitter_data.get(i, "someone")[0]
-                for i in replied_to
-                if i in twitter_data
-            }
+            # We can safely use twitter_data[i] because we check if i is in twitter_data
+            people = {twitter_data[i][0] for i in replied_to if i in twitter_data}
 
             if name in people:
                 people.remove(name)
                 people.add(random.choice(pronouns))
 
+            # These set operations are not the most efficient, but their size is very small, so it should be okay
             others = {i for i in replied_to if i not in twitter_data}
 
-            people_count = len(people)
-            people_iter = iter(people)
-
-            replies = next(people_iter)
-            people_count -= 1
-
-            while people_count > 1 or (people_count == 1 and len(others) != 0):
-                replies += ", " + next(people_iter)
-                people_count -= 1
-
-            if len(others) >= 2:
-                replies += " and some others"
-            elif len(others) == 1:
-                replies += " and someone else"
-            elif people_count > 0:
-                replies += f" and {next(people_iter)}"
+            if people:
+                if len(others) >= 2:
+                    replies = ", ".join(people) + " and some others"
+                elif len(others) == 1:
+                    replies = ", ".join(people) + " and someone else"
+                elif len(people) == 1:
+                    replies = people.pop()
+                else:
+                    # people has at least 2 elements, because it isn't falsy and its length is not 1
+                    last = people.pop()
+                    replies = ", ".join(people) + " and " + last
+            else:
+                if len(others) >= 2:
+                    replies = "some people"
+                elif len(others) == 1:
+                    replies = "someone"
+                else:
+                    # This situation should never happen, but again, better to add in a check for it
+                    replies = "no one"
 
             return {"type": "text", "text": f"{name} replied to {replies} on Twitter!"}
         else:
