@@ -1,11 +1,12 @@
 import logging
 from asyncio import Queue
 from typing import List, Tuple, Union
+import sqlite3 as sqlite
 
 from tweepy import Response, Tweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from hopperbot.config import twitter_data
+from hopperbot.config import twitter_data_debug as twitter_data
 from hopperbot.hoppertasks import ContentBlock, Update
 from hopperbot.people import NONE, Person
 
@@ -15,14 +16,15 @@ class TwitterUpdate(Update):
         self,
         content: List[ContentBlock],
         url: str,
-        identifier: str,
+        identifier: int,
         tweet_index: int,
         thread_height: int,
+        reblog_key: Union[None, int],
     ) -> None:
         self.url = url
         self.tweet_index = tweet_index
         self.thread_height = thread_height
-        super().__init__(content, identifier)
+        super().__init__(content, identifier, reblog_key)
 
 
 def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
@@ -94,6 +96,25 @@ def tweet_block(identifier: str, alt_text: str, url: Union[str, None] = None) ->
         return block
 
 
+def query_tweet_db(tweet_id: int) -> Union[None, Tuple[int, int]]:
+    tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
+
+    result = None
+
+    with tweets_db:
+        cur = tweets_db.execute("SELECT tweet_id, reblog_key, thread_index FROM tweets WHERE tweet_id = ?", [tweet_id])
+        response = cur.fetchone()
+        if response is None:
+            result = None
+        else:
+            (_, reblog_key, thread_index) = response
+            result = (reblog_key, thread_index)
+
+    tweets_db.close()
+
+    return result
+
+
 class TwitterListener(AsyncStreamingClient):
     def __init__(self, queue: Queue[Update], api: AsyncClient, bearer_token: str) -> None:
         self.queue = queue
@@ -118,17 +139,16 @@ class TwitterListener(AsyncStreamingClient):
         author = includes["users"][0]
         username = author["username"]
 
-        identifier = f"tweet{tweet.id}"
         url = f"https://twitter.com/{username}/status/{tweet.id}"
 
         # Processing information
-        (alt_texts, conversation, thread_depth) = await self.get_thread(tweet, username)
+        (alt_texts, conversation, tweet_index, thread_height, reblog_key) = await self.get_thread(tweet, username)
 
         content = [header_block(author.id, conversation)]
 
         # Building update
         if not alt_texts:
-            logging.error("[Twitter] Zero alt texts found (this should be impossible)")
+            logging.error("[Twitter] Zero alt texts found (this should be impossible :/)")
             return
 
         last = alt_texts.pop()
@@ -140,18 +160,26 @@ class TwitterListener(AsyncStreamingClient):
 
         content.append(last_block)
 
-        update = TwitterUpdate(content, url, identifier, thread_depth, thread_depth)
+        update = TwitterUpdate(content, url, tweet.id, tweet_index, thread_height, reblog_key)
 
         await self.queue.put(update)
-        logging.info(f'[Twitter] produced task "{update.identifier}"')
+        logging.info(f'[Twitter] produced task "tweet-{update.identifier}"')
 
-    async def get_thread(self, tweet: Tweet, username: str) -> Tuple[List[str], List[int], int]:
+    async def get_thread(self, tweet: Tweet, username: str) -> Tuple[List[str], List[int], int, int, Union[int, None]]:
         alt_texts = [f"Tweet by @{username}: {tweet.text}"]
         replied_to: List[int] = []
 
         current_tweet = tweet
+
         while current_tweet.in_reply_to_user_id is not None:
             replied_to.append(current_tweet.in_reply_to_user_id)
+
+            result = query_tweet_db(current_tweet.id)
+            if result is not None:
+                (reblog_key, thread_index) = result
+                alt_texts.reverse()
+                replied_to.reverse()
+                return (alt_texts, replied_to, len(alt_texts), thread_index + len(alt_texts), reblog_key)
 
             # Prepare tweet request
             if not current_tweet.referenced_tweets:
@@ -188,4 +216,4 @@ class TwitterListener(AsyncStreamingClient):
         alt_texts.reverse()
         replied_to.reverse()
 
-        return (alt_texts, replied_to, len(alt_texts))
+        return (alt_texts, replied_to, len(alt_texts), len(alt_texts), None)

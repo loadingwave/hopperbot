@@ -4,6 +4,7 @@ ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, st
 
 
 class Update:
-    def __init__(self, content: List[ContentBlock], identifier: str) -> None:
+    def __init__(self, content: List[ContentBlock], identifier: Union[int, str], reblog_key: Union[None, int]) -> None:
         self.content = content
         self.identifier = identifier
+        self.reblog_key = reblog_key
