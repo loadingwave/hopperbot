@@ -1,5 +1,5 @@
-from typing import List
 from random import choice
+from typing import List
 
 
 class Pronoun:
@@ -25,29 +25,29 @@ class Pronoun:
 
 
 HE = Pronoun("he", "him", "his", "his", "himself")
+IT = Pronoun("it", "it", "its", "its", "itself")
 SHE = Pronoun("she", "her", "her", "hers", "herself")
+STAR = Pronoun("star", "star", "stars", "stars", "starself")
 THEY = Pronoun("they", "them", "their", "theirs", "themselves")
 XEY = Pronoun("xey", "xem", "xyr", "xyrs", "xemself")
-STAR = Pronoun("star", "star", "stars", "stars", "starself")
-IT = Pronoun("it", "it", "its", "its", "itself")
-ERROR = Pronoun("error", "error", "error", "error", "error")
+NONE = Pronoun("error", "error", "error", "error", "error")
 
 
 def convert_pronoun(b: str) -> Pronoun:
     if b == "HE":
         return HE
+    elif b == "IT":
+        return IT
     elif b == "SHE":
         return SHE
+    elif b == "STAR":
+        return STAR
     elif b == "THEY":
         return THEY
     elif b == "XEY":
         return XEY
-    elif b == "STAR":
-        return STAR
-    elif b == "IT":
-        return IT
     else:
-        return ERROR
+        return NONE
 
 
 class Person:
