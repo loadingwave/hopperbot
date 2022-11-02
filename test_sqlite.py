@@ -1,5 +1,5 @@
 import sqlite3 as sqlite
-from hopperbot.pronouns import Person, adapt_person, convert_person
+from hopperbot.people import Person, adapt_person, convert_person
 
 
 def main() -> None:
