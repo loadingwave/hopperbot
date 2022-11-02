@@ -1,29 +1,29 @@
 import sqlite3 as sqlite
-from hopperbot.pronouns import Pronoun
-import hopperbot.pronouns as pn
-from typing import List
-
-
-class Person:
-    def __init__(self, name: str, pronouns: List[Pronoun]) -> None:
-        self.name = name
-        self.pronouns = pronouns
+from hopperbot.pronouns import Person, adapt_person, convert_person
 
 
 def main() -> None:
-    con = sqlite.connect("test.db")
 
-    # tweet_id reblog_id thread_index
+    sqlite.register_adapter(Person, adapt_person)
+    sqlite.register_converter("person", convert_person)
 
-    me = Person("Thomas", [pn.HE])
-    tommy = Person("Tommy", [pn.HE])
+    con = sqlite.connect("test.db", detect_types=sqlite.PARSE_DECLTYPES)
+    # con.execute("CREATE TABLE tweets(id INTEGER PRIMARY KEY, person person)")
 
-    data = [(1, me), (2, tommy)]
-    with con:
-        con.executemany("INSERT INTO tweets(tweet_id, people) VALUES(?, ?)", data)
+    # # tweet_id reblog_id thread_index
 
-    for row in con.execute("SELECT tweet_id, people FROM tweets"):
-        print(row)
+    # me = Person("Thomas", [pn.HE, pn.THEY])
+    # tommy = Person("Tommy", [pn.HE])
+
+    # data = [(1, me), (2, tommy)]
+    # with con:
+    #     con.executemany("INSERT INTO tweets(id, person) VALUES(?, ?)", data)
+
+    id: int
+    person: Person
+
+    for (id, person) in con.execute("SELECT id, person FROM tweets"):
+        print(f"id: {id}, random pronoun: {person.em()}")
 
 
 if __name__ == "__main__":
