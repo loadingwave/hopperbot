@@ -10,7 +10,7 @@ from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
 from hopperbot.config import blogname
-from hopperbot.config import updatables_debug as updatables
+from hopperbot.config import updatables
 from hopperbot.hoppertasks import Update
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
@@ -56,9 +56,9 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     while True:
         logging.debug("[Tumblr] Fetching task...")
         t = await queue.get()
-        logging.info(f'[Tumblr] consuming task "{t.identifier}"')
 
         if isinstance(t, TwitterUpdate):
+            logging.info(f'[Tumblr] consuming task "tweet{t.identifier}"')
             # Rendering has to be blocking because the external webdriver is a black box
             filename_prefix = "tweet" + str(t.identifier)
             filenames = renderer.render_tweets(t.url, filename_prefix, t.tweet_index, t.thread_height)

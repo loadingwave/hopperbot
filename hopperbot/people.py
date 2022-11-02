@@ -7,9 +7,9 @@ class Pronoun:
         self,
         object: str,
         subject: str,
-        reflexive: str,
-        possesive_pronoun: str,
         possessive_determiner: str,
+        possesive_pronoun: str,
+        reflexive: str,
     ) -> None:
         self.object = object
         self.subject = subject

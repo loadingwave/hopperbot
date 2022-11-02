@@ -3,10 +3,10 @@ from asyncio import Queue
 from typing import List, Tuple, Union
 import sqlite3 as sqlite
 
-from tweepy import Response, Tweet
+from tweepy import Response, Tweet, ReferencedTweet
 from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
 
-from hopperbot.config import twitter_data_debug as twitter_data
+from hopperbot.config import twitter_data
 from hopperbot.hoppertasks import ContentBlock, Update
 from hopperbot.people import NONE, Person
 
@@ -42,7 +42,7 @@ def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
             people.remove(person.name)
             people.add(person.emself())
 
-        others = sum(map(lambda id: (id in twitter_data), replied_to))
+        others = sum(map(lambda id: (id not in twitter_data), replied_to))
 
         if people:
             if others >= 2:
@@ -163,7 +163,7 @@ class TwitterListener(AsyncStreamingClient):
         update = TwitterUpdate(content, url, tweet.id, tweet_index, thread_height, reblog_key)
 
         await self.queue.put(update)
-        logging.info(f'[Twitter] produced task "tweet-{update.identifier}"')
+        logging.info(f'[Twitter] produced task: "tweet{update.identifier}: {tweet.text}"')
 
     async def get_thread(self, tweet: Tweet, username: str) -> Tuple[List[str], List[int], int, int, Union[int, None]]:
         alt_texts = [f"Tweet by @{username}: {tweet.text}"]
@@ -174,20 +174,22 @@ class TwitterListener(AsyncStreamingClient):
         while current_tweet.in_reply_to_user_id is not None:
             replied_to.append(current_tweet.in_reply_to_user_id)
 
-            result = query_tweet_db(current_tweet.id)
-            if result is not None:
-                (reblog_key, thread_index) = result
-                alt_texts.reverse()
-                replied_to.reverse()
-                return (alt_texts, replied_to, len(alt_texts), thread_index + len(alt_texts), reblog_key)
-
             # Prepare tweet request
             if not current_tweet.referenced_tweets:
                 break
 
-            referenced = next(filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets))
-            if not referenced:
+            referenced: Union[None, ReferencedTweet] = next(
+                filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets)
+            )
+            if referenced is None:
                 break
+
+            result = query_tweet_db(referenced.id)
+            if result is not None:
+                (reblog_key, thread_index) = result
+                alt_texts.reverse()
+                replied_to.reverse()
+                return (alt_texts, replied_to, thread_index + len(alt_texts), len(alt_texts), reblog_key)
 
             expansions = [
                 "author_id",
