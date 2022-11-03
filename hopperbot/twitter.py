@@ -136,7 +136,6 @@ async def get_thread(
             expansions = [
                 "author_id",
                 "in_reply_to_user_id",
-                "attachments.media_keys",
                 "referenced_tweets.id",
             ]
 

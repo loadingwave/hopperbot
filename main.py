@@ -74,6 +74,8 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         logging.debug("[Tumblr] Fetching task...")
         update = await queue.get()
 
+        logging.info(f'[Tumblr] Processing task "{str(update)}"')
+
         post = await update.process(**kwargs)
 
         if post.reblog is None:
