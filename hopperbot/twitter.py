@@ -8,7 +8,7 @@ from tweepy import ReferencedTweet, Response, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
-from hopperbot.config import twitter_data, twitter_updatables
+from hopperbot.debug import twitter_data, twitter_updatables
 from hopperbot.hoppertasks import ContentBlock, TumblrPost, Update
 from hopperbot.people import NONE, Person
 from hopperbot.renderer import Renderer
@@ -209,29 +209,53 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
-        return TumblrPost(
+        logging.info(f"[Twitter] username: {self.username}")
+
+        post = TumblrPost(
             twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog
         )
+
+        return post
 
     def cleanup(self) -> None:
         if self.filenames:
             for filename in self.filenames:
                 os.remove(filename)
+        else:
+            logging.warning("[Twitter] TwitterUpdate did not have any filenames to delete")
 
     def __str__(self) -> str:
         return "tweet" + str(self.tweet.id)
 
 
 class TwitterListener(AsyncStreamingClient):
-    def __init__(self, queue: Queue[Update], api: TwitterApi, bearer_token: str) -> None:
+    def __init__(self, queue: Queue[Update], bearer_token: str) -> None:
         self.queue = queue
 
         # To be able to follow reblog trails, we need to be able to lookup tweets
-        self.api = api
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
         logging.info("[Twitter] Listener is connected")
+
+    async def reset_rules(self) -> None:
+        get_response = await self.get_rules()
+        print(get_response)
+        if isinstance(get_response, Response):
+            (data, _, errors, _) = get_response
+            if errors:
+                for error in errors:
+                    logging.error(f'[Twitter] Trying to get rules returned an error: "{error}"')
+            else:
+                delete_response = await self.delete_rules(data)
+                if isinstance(delete_response, Response):
+                    if errors:
+                        for error in errors:
+                            logging.error(f'[Twitter] Trying to delete rules returned an error: "{error}"')
+                else:
+                    logging.error("[Twitter] Trying to delete rules did not return a Response somehow")
+        else:
+            logging.error("[Twitter] Trying to get rules did not return a Response somehow")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet

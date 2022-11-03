@@ -6,9 +6,8 @@ from asyncio import Queue
 
 from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
-from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import twitter_updatables
+from hopperbot.debug import twitter_updatables
 from hopperbot.hoppertasks import Update
 from hopperbot.people import Person, adapt_person, convert_person
 from hopperbot.renderer import Renderer
@@ -19,8 +18,9 @@ TWITTER_RULE_MAX_LEN = 512
 
 
 async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
-    twitter_api = TwitterApi(**twitter_keys)
-    twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
+    twitter_client = TwitterListener(queue, **twitter_keys)
+
+    await twitter_client.reset_rules()
 
     twitter_usernames = list(twitter_updatables.keys())
 
@@ -68,7 +68,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     renderer = Renderer()
     logging.debug("[Tumblr] Initialized renderer")
 
-    kwargs = {"renderer": renderer, "twitter_token": twitter_keys["twitter_token"]}
+    kwargs = {"renderer": renderer, "twitter_token": twitter_keys["bearer_token"]}
 
     while True:
         logging.debug("[Tumblr] Fetching task...")
@@ -99,12 +99,13 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         if "meta" in response:
             logging.error(f"[Tumblr] {response}")
         else:
-            logging.debug(f"[Tumblr] {response}")
+            logging.info(f"[Tumblr] {response}")
 
             if isinstance(update, TwitterUpdate):
                 if update.tweet_index is None:
                     logging.error(f"[Twitter] Update {str(update)} has tweet_index None after process() call")
                 else:
+                    logging.debug(f"[Tumblr] Adding tweet {update.tweet.id} to the database")
                     tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
 
                     with tweets_db:
@@ -114,6 +115,8 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
                         )
 
                     tweets_db.close()
+
+        update.cleanup()
 
         queue.task_done()
 

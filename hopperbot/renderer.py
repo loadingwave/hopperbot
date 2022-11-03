@@ -59,7 +59,10 @@ class Renderer(Chrome):
 
         # tweet_index - thread_height is the index of the first tweet to be rendered
         # incrementing by 1 is needed because the 0th element of the div is the header, not the first tweet
-        for i in range(tweet_index - thread_height + 1, tweet_index + 1):
+        start = tweet_index - thread_height + 1
+        end = tweet_index + 1
+        logging.info(f"[Renderer] rendering tweets {start} to {end}")
+        for i in range(start, end):
             tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i))
 
             tweet_top = tweet_element.rect["y"]
