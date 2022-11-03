@@ -18,13 +18,6 @@ from hopperbot.twitter import TwitterListener, TwitterUpdate
 from hopperbot.people import Person, adapt_person, convert_person
 
 
-# Included for debugging purposes
-async def printing(queue: Queue[Update]) -> None:
-    while True:
-        logging.info(f"[Main] Queue empty: {queue.empty()}")
-        await asyncio.sleep(5)
-
-
 async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
     twitter_api = TwitterApi(**twitter_keys)
     twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
