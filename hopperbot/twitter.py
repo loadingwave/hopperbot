@@ -89,13 +89,13 @@ def query_tweet_db(tweet_id: int) -> Union[None, Tuple[int, int, str]]:
     result = None
 
     with tweets_db:
-        cur = tweets_db.execute("SELECT tweet_index, reblog_key, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
+        cur = tweets_db.execute("SELECT tweet_index, reblog_id, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
         response = cur.fetchone()
         if response is None:
             result = None
         else:
-            (tweet_index, reblog_key, blogname) = response
-            result = (tweet_index, reblog_key, blogname)
+            (tweet_index, reblog_id, blogname) = response
+            result = (tweet_index, reblog_id, blogname)
 
     tweets_db.close()
 
@@ -208,10 +208,6 @@ class TwitterUpdate(Update):
         self.filenames = filenames
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
-
-        tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
-
-        tweets_db.close()
 
         return TumblrPost(
             twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog

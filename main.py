@@ -109,7 +109,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
 
                     with tweets_db:
                         tweets_db.execute(
-                            "INSERT INTO tweets(tweet_id, tweet_index, reblog_key, blogname) VALUES(?, ?, ?)",
+                            "INSERT INTO tweets(tweet_id, tweet_index, reblog_id, blogname) VALUES(?, ?, ?, ?)",
                             (update.tweet.id, update.tweet_index, response["id"], post.blogname),
                         )
 
@@ -126,7 +126,9 @@ def touch_tweets_db() -> None:
 
     if response is None:
         logging.info("[Main] Created table")
-        cur.execute("CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, reblog_key INTEGER, thread_index INTEGER)")
+        cur.execute(
+            "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
+        )
 
     con.commit()
     con.close()
