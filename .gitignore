@@ -164,6 +164,5 @@ cython_debug/
 .coverage
 secrets.py
 *.png
-response.txt
-StreamResponse
 hopperbot.service
+debug.py

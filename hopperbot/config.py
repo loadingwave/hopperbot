@@ -1,16 +1,6 @@
-from typing import Dict
-
 from hopperbot.people import HE, IT, NONE, SHE, STAR, THEY, XEY, Person
 
-me = Person("Thomas", [HE])
-twitter_data_debug = {
-    1478064563358740481: me,
-    785517623626887169: me,
-}
-
-updatables_debug = ["space_stew", "tapwaterthomas"]
-
-twitter_data: Dict[int, Person] = {
+twitter_data = {
     1222961028926824450: Person("Ranboo", [HE, THEY]),
     1344189615134003201: Person("Ranboo", [HE, THEY]),
     1523474396547100672: Person("Ranboo", [HE, THEY]),
