@@ -42,7 +42,7 @@ def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
             people.remove(person.name)
             people.add(person.emself())
 
-        others = sum(map(lambda id: (id not in twitter_data), replied_to))
+        others = sum(set(map(lambda id: (id not in twitter_data), replied_to)))
 
         if people:
             if others >= 2:
