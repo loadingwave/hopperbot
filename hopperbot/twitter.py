@@ -8,7 +8,7 @@ from tweepy import ReferencedTweet, Response, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
-from hopperbot.config import twitter_data
+from hopperbot.config import twitter_data, twitter_updatables
 from hopperbot.hoppertasks import ContentBlock, TumblrPost, Update
 from hopperbot.people import NONE, Person
 from hopperbot.renderer import Renderer
@@ -213,7 +213,9 @@ class TwitterUpdate(Update):
 
         tweets_db.close()
 
-        return TumblrPost("test37", content, ["hb.automated", "hb.twitter"], media_sources, reblog)
+        return TumblrPost(
+            twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog
+        )
 
     def cleanup(self) -> None:
         if self.filenames:

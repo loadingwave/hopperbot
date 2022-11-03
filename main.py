@@ -8,21 +8,45 @@ from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import blogname, updatables
+from hopperbot.config import twitter_updatables
 from hopperbot.hoppertasks import Update
 from hopperbot.people import Person, adapt_person, convert_person
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.twitter import TwitterListener, TwitterUpdate
 
+TWITTER_RULE_MAX_LEN = 512
+
 
 async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
     twitter_api = TwitterApi(**twitter_keys)
     twitter_client = TwitterListener(queue, twitter_api, **twitter_keys)
 
-    rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, updatables)), "ranboo")
+    twitter_usernames = list(twitter_updatables.keys())
 
-    await twitter_client.add_rules(rule)
+    if len(twitter_usernames) <= 21:
+        rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, twitter_usernames)), "rule0")
+        await twitter_client.add_rules(rule)
+    else:
+        next = twitter_usernames.pop()
+
+        # Generate at most 5 rules with as many usernames as possible per rule
+        for i in range(5):
+            rule = "from:" + next
+            next = twitter_usernames.pop()
+
+            while next is not None and len(rule) + 9 + len(next) <= TWITTER_RULE_MAX_LEN:
+                rule += " OR from:" + next
+                next = twitter_usernames.pop()
+
+            await twitter_client.add_rules(rule)
+
+            if next is None:
+                # if there are no more users to add, stop generating rules
+                break
+
+        if len(twitter_usernames) > 0:
+            logging.error(f"[Twitter] {len(twitter_usernames)} usernames did not fit in a rule")
 
     expansions = [
         "author_id",
@@ -64,7 +88,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         else:
             (reblog_id, parent_blogname) = post.reblog
             response = tumblr_api.reblog_post(
-                blogname=blogname,
+                blogname=post.blogname,
                 parent_blogname=parent_blogname,
                 id=reblog_id,
                 content=post.content,
