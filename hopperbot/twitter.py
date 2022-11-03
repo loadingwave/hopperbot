@@ -209,8 +209,6 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
-        logging.info(f"[Twitter] username: {self.username}")
-
         post = TumblrPost(
             twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog
         )
@@ -246,7 +244,7 @@ class TwitterListener(AsyncStreamingClient):
             if errors:
                 for error in errors:
                     logging.error(f'[Twitter] Trying to get rules returned an error: "{error}"')
-            else:
+            elif data:
                 delete_response = await self.delete_rules(data)
                 if isinstance(delete_response, Response):
                     if errors:
@@ -273,4 +271,4 @@ class TwitterListener(AsyncStreamingClient):
         update = TwitterUpdate(username, tweet)
 
         await self.queue.put(update)
-        logging.info(f'[Twitter] produced task: "tweet{str(update)}: {tweet.text}"')
+        logging.info(f'[Twitter] produced task: "{str(update)}: {tweet.text}"')

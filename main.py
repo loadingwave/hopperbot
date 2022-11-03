@@ -99,13 +99,16 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         if "meta" in response:
             logging.error(f"[Tumblr] {response}")
         else:
-            logging.info(f"[Tumblr] {response}")
+            display_text: str = response["display_text"]
+            if len(display_text) == 2:
+                logging.info(f"[Tumblr] {display_text[0]} {str(update)} {display_text[1]}")
+            else:
+                logging.warning(f"[Tumblr] Sucessfully posted task {str(update)}, but the display text was weird")
 
             if isinstance(update, TwitterUpdate):
                 if update.tweet_index is None:
                     logging.error(f"[Twitter] Update {str(update)} has tweet_index None after process() call")
                 else:
-                    logging.debug(f"[Tumblr] Adding tweet {update.tweet.id} to the database")
                     tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
 
                     with tweets_db:
