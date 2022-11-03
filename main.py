@@ -7,7 +7,7 @@ from asyncio import Queue
 from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 
-from hopperbot.debug import twitter_updatables
+from hopperbot.config import twitter_updatables
 from hopperbot.hoppertasks import Update
 from hopperbot.people import Person, adapt_person, convert_person
 from hopperbot.renderer import Renderer
