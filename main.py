@@ -97,11 +97,13 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         if "meta" in response:
             logging.error(f"[Tumblr] {response}")
         else:
-            display_text = response["display_text"].split(' ', 1)
-            if len(display_text) == 2:
-                logging.info(f"[Tumblr] {display_text[0]} {str(update)} {display_text[1]}")
-            else:
-                logging.warning(f"[Tumblr] Sucessfully posted task {str(update)}, but the display text was weird")
+            # display_text = response["display_text"].split(' ', 1)
+            # if len(display_text) == 2:
+            #     logging.info(f"[Tumblr] {display_text[0]} {str(update)} {display_text[1]}")
+            # else:
+            #     logging.warning(f"[Tumblr] Sucessfully posted task {str(update)}, but the display text was weird")
+
+            logging.info(f"[Tumblr] Posted task {str(update)} ({response})")
 
             if isinstance(update, TwitterUpdate):
                 if update.tweet_index is None:
