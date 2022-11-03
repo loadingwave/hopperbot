@@ -1,21 +1,19 @@
 import asyncio
 import logging
-import os
+import sqlite3 as sqlite
 import sys
 from asyncio import Queue
-import sqlite3 as sqlite
 
 from pytumblr2 import TumblrRestClient as TumblrApi
 from tweepy import StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import blogname
-from hopperbot.config import updatables
+from hopperbot.config import blogname, updatables
 from hopperbot.hoppertasks import Update
+from hopperbot.people import Person, adapt_person, convert_person
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.twitter import TwitterListener, TwitterUpdate
-from hopperbot.people import Person, adapt_person, convert_person
 
 
 async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
@@ -46,56 +44,53 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
     renderer = Renderer()
     logging.debug("[Tumblr] Initialized renderer")
 
+    kwargs = {"renderer": renderer, "twitter_token": twitter_keys["twitter_token"]}
+
     while True:
         logging.debug("[Tumblr] Fetching task...")
-        t = await queue.get()
+        update = await queue.get()
 
-        if isinstance(t, TwitterUpdate):
-            logging.info(f'[Tumblr] consuming task "tweet{t.identifier}"')
-            # Rendering has to be blocking because the external webdriver is a black box
-            filename_prefix = "tweet" + str(t.identifier)
-            filenames = renderer.render_tweets(t.url, filename_prefix, t.tweet_index, t.thread_height)
+        logging.info(f'[Tumblr] consuming task "{str(update)}"')
 
-            media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
+        post = await update.process(**kwargs)
 
-            if t.reblog_key is None:
-                response = tumblr_api.create_post(
-                    blogname=blogname,
-                    content=t.content,
-                    tags=["hb.automated", "hb.twitter"],
-                    media_sources=media_sources,
-                )
-            else:
-                response = tumblr_api.reblog_post(
-                    blogname=blogname,
-                    parent_blogname=blogname,
-                    id=t.reblog_key,
-                    content=t.content,
-                    tags=["hb.automated", "hb.twitter"],
-                    media_sources=media_sources,
-                )
-
-            if "meta" in response:
-                logging.error(f"[Tumblr] {response}")
-            else:
-                logging.debug(f"[Tumblr] {response}")
-
-                tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
-
-                with tweets_db:
-                    tweet_id = t.identifier
-                    tweets_db.execute(
-                        "INSERT INTO tweets(tweet_id, reblog_key, thread_index) VALUES(?, ?, ?)",
-                        (tweet_id, response["id"], t.tweet_index),
-                    )
-
-                tweets_db.close()
-
-            # After the files have been uploaded to Tumblr, we don't want them to gobble up our memory
-            for filename in filenames:
-                os.remove(filename)
+        if post.reblog is None:
+            response = tumblr_api.create_post(
+                blogname=post.blogname,
+                content=post.content,
+                tags=post.tags,
+                media_sources=post.media_sources,
+            )
         else:
-            logging.warning(f'[Tumblr] unrecognised HopperTask "{t.identifier}"')
+            (reblog_id, parent_blogname) = post.reblog
+            response = tumblr_api.reblog_post(
+                blogname=blogname,
+                parent_blogname=parent_blogname,
+                id=reblog_id,
+                content=post.content,
+                tags=post.tags,
+                media_sources=post.media_sources,
+            )
+
+        if "meta" in response:
+            logging.error(f"[Tumblr] {response}")
+        else:
+            logging.debug(f"[Tumblr] {response}")
+
+            if isinstance(update, TwitterUpdate):
+                if update.tweet_index is None:
+                    logging.error(f"[Twitter] Update {str(update)} has tweet_index None after process() call")
+                else:
+                    tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
+
+                    with tweets_db:
+                        tweets_db.execute(
+                            "INSERT INTO tweets(tweet_id, tweet_index, reblog_key, blogname) VALUES(?, ?, ?)",
+                            (update.tweet.id, update.tweet_index, response["id"], post.blogname),
+                        )
+
+                    tweets_db.close()
+
         queue.task_done()
 
 

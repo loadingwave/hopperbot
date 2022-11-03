@@ -1,5 +1,9 @@
 from hopperbot.people import HE, IT, NONE, SHE, STAR, THEY, XEY, Person
 
+updatables = ["ranboosaysstuff", "ranaltboo", "whenranboolive"]
+
+blogname = "test37"
+
 twitter_data = {
     1222961028926824450: Person("Ranboo", [HE, THEY]),
     1344189615134003201: Person("Ranboo", [HE, THEY]),
@@ -33,7 +37,3 @@ twitter_data = {
     731186310552158208: Person("Jack Manifold", [HE]),
     1337155933735186432: Person("Jack Manifold", [HE]),
 }
-
-updatables = ["ranboosaysstuff", "ranaltboo", "whenranboolive"]
-
-blogname = "test37"

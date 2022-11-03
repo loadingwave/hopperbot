@@ -1,30 +1,17 @@
 import logging
+import os
+import sqlite3 as sqlite
 from asyncio import Queue
 from typing import List, Tuple, Union
-import sqlite3 as sqlite
 
-from tweepy import Response, Tweet, ReferencedTweet
-from tweepy.asynchronous import AsyncClient, AsyncStreamingClient
+from tweepy import ReferencedTweet, Response, Tweet
+from tweepy.asynchronous import AsyncClient as TwitterApi
+from tweepy.asynchronous import AsyncStreamingClient
 
 from hopperbot.config import twitter_data
-from hopperbot.hoppertasks import ContentBlock, Update
+from hopperbot.hoppertasks import ContentBlock, TumblrPost, Update
 from hopperbot.people import NONE, Person
-
-
-class TwitterUpdate(Update):
-    def __init__(
-        self,
-        content: List[ContentBlock],
-        url: str,
-        identifier: int,
-        tweet_index: int,
-        thread_height: int,
-        reblog_key: Union[None, int],
-    ) -> None:
-        self.url = url
-        self.tweet_index = tweet_index
-        self.thread_height = thread_height
-        super().__init__(content, identifier, reblog_key)
+from hopperbot.renderer import Renderer
 
 
 def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
@@ -96,27 +83,149 @@ def tweet_block(identifier: str, alt_text: str, url: Union[str, None] = None) ->
         return block
 
 
-def query_tweet_db(tweet_id: int) -> Union[None, Tuple[int, int]]:
+def query_tweet_db(tweet_id: int) -> Union[None, Tuple[int, int, str]]:
     tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
 
     result = None
 
     with tweets_db:
-        cur = tweets_db.execute("SELECT tweet_id, reblog_key, thread_index FROM tweets WHERE tweet_id = ?", [tweet_id])
+        cur = tweets_db.execute("SELECT tweet_index, reblog_key, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
         response = cur.fetchone()
         if response is None:
             result = None
         else:
-            (_, reblog_key, thread_index) = response
-            result = (reblog_key, thread_index)
+            (tweet_index, reblog_key, blogname) = response
+            result = (tweet_index, reblog_key, blogname)
 
     tweets_db.close()
 
     return result
 
 
+async def get_thread(
+    twitter_token: str, tweet: Tweet, username: str
+) -> Tuple[List[str], List[int], int, int, Union[None, Tuple[int, str]]]:
+    alt_texts = [f"Tweet by @{username}: {tweet.text}"]
+    replied_to: List[int] = []
+
+    if tweet.in_reply_to_user_id is not None:
+
+        api = TwitterApi(bearer_token=twitter_token)
+
+        current_tweet = tweet
+        while current_tweet.in_reply_to_user_id is not None:
+            replied_to.append(current_tweet.in_reply_to_user_id)
+
+            # Prepare tweet request
+            if not current_tweet.referenced_tweets:
+                break
+
+            referenced: Union[None, ReferencedTweet] = next(
+                filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets)
+            )
+            if referenced is None:
+                break
+
+            result = query_tweet_db(referenced.id)
+            if result is not None:
+                (tweet_index, tumblr_id, blog_name) = result
+                alt_texts.reverse()
+                replied_to.reverse()
+                return (alt_texts, replied_to, tweet_index + len(alt_texts), len(alt_texts), (tumblr_id, blog_name))
+
+            expansions = [
+                "author_id",
+                "in_reply_to_user_id",
+                "attachments.media_keys",
+                "referenced_tweets.id",
+            ]
+
+            # Get next tweet
+            response = await api.get_tweet(id=referenced.id, expansions=expansions)
+
+            if not isinstance(response, Response):
+                logging.error(f"[Twitter] API did not return a response while fetching tweet {referenced.id}")
+                break
+
+            (ref_tweet, ref_includes, ref_errors, _) = response
+            if ref_errors:
+                for error in ref_errors:
+                    logging.error(f"[Twitter] {error}")
+                break
+
+            ref_author = ref_includes["users"][0]
+            alt_texts.append(f'Tweet by @{ref_author["username"]}: {ref_tweet.text}')
+            current_tweet = ref_tweet
+
+    alt_texts.reverse()
+    replied_to.reverse()
+
+    return (alt_texts, replied_to, len(alt_texts), len(alt_texts), None)
+
+
+class TwitterUpdate(Update):
+
+    filenames: Union[None, List[str]] = None
+    tweet_index: Union[None, int] = None
+
+    def __init__(
+        self,
+        username: str,
+        tweet: Tweet,
+    ) -> None:
+        self.username = username
+        self.tweet = tweet
+        super().__init__()
+
+    # Using "type: ignore" for **kwargs
+    async def process(self, renderer: Renderer, twitter_token: str, **kwargs) -> TumblrPost:  # type: ignore
+        content: List[ContentBlock] = [{}]
+        (alt_texts, conversation, tweet_index, thread_height, reblog) = await get_thread(
+            twitter_token, self.tweet, self.username
+        )
+
+        self.tweet_index = tweet_index
+
+        content = [header_block(self.tweet.author_id, conversation)]
+
+        url = f"https://twitter.com/{self.username}/status/{self.tweet.id}"
+
+        # Building update
+        if not alt_texts:
+            logging.error("[Twitter] Zero alt texts found (this should be impossible :/)")
+        else:
+            last = alt_texts.pop()
+            last_block = tweet_block(f"tweet{len(alt_texts)}", last, url)
+
+            for (i, alt_text) in enumerate(alt_texts):
+                block = tweet_block(f"tweet{i}", alt_text)
+                content.append(block)
+
+            content.append(last_block)
+
+        filename_prefix = str(self)
+        filenames = renderer.render_tweets(url, filename_prefix, tweet_index, thread_height)
+        self.filenames = filenames
+
+        media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
+
+        tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
+
+        tweets_db.close()
+
+        return TumblrPost("test37", content, ["hb.automated", "hb.twitter"], media_sources, reblog)
+
+    def cleanup(self) -> None:
+        if self.filenames:
+            for filename in self.filenames:
+                os.remove(filename)
+
+    def __str__(self) -> str:
+        return "tweet" + str(self.tweet.id)
+
+
 class TwitterListener(AsyncStreamingClient):
-    def __init__(self, queue: Queue[Update], api: AsyncClient, bearer_token: str) -> None:
+    def __init__(self, queue: Queue[Update], api: TwitterApi, bearer_token: str) -> None:
         self.queue = queue
 
         # To be able to follow reblog trails, we need to be able to lookup tweets
@@ -139,83 +248,7 @@ class TwitterListener(AsyncStreamingClient):
         author = includes["users"][0]
         username = author["username"]
 
-        url = f"https://twitter.com/{username}/status/{tweet.id}"
-
-        # Processing information
-        (alt_texts, conversation, tweet_index, thread_height, reblog_key) = await self.get_thread(tweet, username)
-
-        content = [header_block(author.id, conversation)]
-
-        # Building update
-        if not alt_texts:
-            logging.error("[Twitter] Zero alt texts found (this should be impossible :/)")
-            return
-
-        last = alt_texts.pop()
-        last_block = tweet_block(f"tweet{len(alt_texts)}", last, url)
-
-        for (i, alt_text) in enumerate(alt_texts):
-            block = tweet_block(f"tweet{i}", alt_text)
-            content.append(block)
-
-        content.append(last_block)
-
-        update = TwitterUpdate(content, url, tweet.id, tweet_index, thread_height, reblog_key)
+        update = TwitterUpdate(username, tweet)
 
         await self.queue.put(update)
-        logging.info(f'[Twitter] produced task: "tweet{update.identifier}: {tweet.text}"')
-
-    async def get_thread(self, tweet: Tweet, username: str) -> Tuple[List[str], List[int], int, int, Union[int, None]]:
-        alt_texts = [f"Tweet by @{username}: {tweet.text}"]
-        replied_to: List[int] = []
-
-        current_tweet = tweet
-
-        while current_tweet.in_reply_to_user_id is not None:
-            replied_to.append(current_tweet.in_reply_to_user_id)
-
-            # Prepare tweet request
-            if not current_tweet.referenced_tweets:
-                break
-
-            referenced: Union[None, ReferencedTweet] = next(
-                filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets)
-            )
-            if referenced is None:
-                break
-
-            result = query_tweet_db(referenced.id)
-            if result is not None:
-                (reblog_key, thread_index) = result
-                alt_texts.reverse()
-                replied_to.reverse()
-                return (alt_texts, replied_to, thread_index + len(alt_texts), len(alt_texts), reblog_key)
-
-            expansions = [
-                "author_id",
-                "in_reply_to_user_id",
-                "attachments.media_keys",
-                "referenced_tweets.id",
-            ]
-
-            # Get next tweet
-            response = await self.api.get_tweet(id=referenced.id, expansions=expansions)
-
-            if not isinstance(response, Response):
-                logging.error(f"[Twitter] API did not return a response while fetching tweet {referenced.id}")
-                break
-
-            (ref_tweet, ref_includes, ref_errors, _) = response
-            if ref_errors:
-                for error in ref_errors:
-                    logging.error(f"[Twitter] {error}")
-                break
-
-            ref_author = ref_includes["users"][0]
-            alt_texts.append(f'Tweet by @{ref_author["username"]}: {ref_tweet.text}')
-            current_tweet = ref_tweet
-
-        alt_texts.reverse()
-        replied_to.reverse()
-
-        return (alt_texts, replied_to, len(alt_texts), len(alt_texts), None)
+        logging.info(f'[Twitter] produced task: "tweet{str(update)}: {tweet.text}"')
