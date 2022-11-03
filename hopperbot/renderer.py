@@ -1,6 +1,5 @@
 from time import sleep
 from typing import List
-import logging
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -17,10 +16,6 @@ class Renderer(Chrome):
     TWEET_XPATH = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]"
 
     def __init__(self) -> None:
-
-        logger = logging.getLogger("selenium.webdriver.remote.remote_connection")
-        logger.setLevel(logging.WARNING)
-
         options = Options()
         options.headless = True
         super().__init__(options=options)
@@ -30,14 +25,25 @@ class Renderer(Chrome):
     def render_tweets(self, url: str, filename_prefix: str, tweet_index: int, thread_height: int = 1) -> List[str]:
         """Renders a tweet, and the tweets it was responding to
 
-        :param url: The url of the tweet to be rendered
-        :param filename_prefix: The n'th tweet will be saved to "filename_prefix-n.png"
-        :param tweet_index: The index of the tweet, starting from 1.
-            (If there were two tweets before this one, the tweet index would be 3)
-        :thread_height: How many tweets to render, must be strictly postive and smaller or equal to the tweet index
-            Default is 1
-        :returns: A list of filenames, where the rendered tweets are stored
+        Parameters
+        ----------
+        url : str
+            The url of the tweet to be rendered
+        filename_prefix : str
+            The n'th tweet will be saved to "filename_prefix-n.png"
+        tweet_index : int
+            The index of the tweet, starting from 1. (If there were two tweets
+            before this one, the tweet index would be 3)
+        thread_height : int, optional
+            How many tweets to render, must be strictly postive and smaller or
+            equal to the tweet index. Default is 1
+
+        Returns
+        -------
+        List[str]
+            A list of filenames, where the rendered tweets are stored
         """
+
         # Variables keeping track of current actual view of the tweets, not the viewport
         view_bottom = self.get_window_size()["height"] - self.FOOTER_HEIGHT
         view_top = self.HEADER_HEIGHT
@@ -57,12 +63,13 @@ class Renderer(Chrome):
 
         filenames = []
 
-        # tweet_index - thread_height is the index of the first tweet to be rendered
+        # tweet_index - thread_height is the 0-start index of the first tweet to be rendered
         # incrementing start by 1 because the 0th element of the div is the header, not the first tweet
         # incrementing end by one because range is exclusive
         start = tweet_index - thread_height + 1
         end = tweet_index + 1
         for i in range(start, end):
+
             tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i))
 
             tweet_top = tweet_element.rect["y"]
