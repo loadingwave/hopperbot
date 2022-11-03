@@ -74,8 +74,6 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         logging.debug("[Tumblr] Fetching task...")
         update = await queue.get()
 
-        logging.info(f'[Tumblr] consuming task "{str(update)}"')
-
         post = await update.process(**kwargs)
 
         if post.reblog is None:
@@ -99,7 +97,7 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         if "meta" in response:
             logging.error(f"[Tumblr] {response}")
         else:
-            display_text: str = response["display_text"]
+            display_text = response["display_text"].split(' ', 1)
             if len(display_text) == 2:
                 logging.info(f"[Tumblr] {display_text[0]} {str(update)} {display_text[1]}")
             else:
