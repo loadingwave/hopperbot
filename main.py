@@ -4,8 +4,6 @@ import sqlite3 as sqlite
 import sys
 from asyncio import Queue, Task
 
-from pytumblr2 import TumblrRestClient as TumblrApi
-
 from hopperbot import config
 from hopperbot.config import twitter_updatables
 from hopperbot.people import Person, adapt_person, convert_person
@@ -13,6 +11,7 @@ from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.twitter import TwitterListener
 from hopperbot.updates import Update
+from hopperbot.tumblr import TumblrApi
 
 
 async def setup_twitter(queue: Queue[Update]) -> Task[None]:
@@ -40,50 +39,15 @@ async def setup_twitter(queue: Queue[Update]) -> Task[None]:
 
 async def setup_tumblr(queue: Queue[Update]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
-    logging.info("[Tumblr] Initialized Tumblr api")
+    logging.info("Initialized Tumblr api")
     renderer = Renderer()
-    logging.debug("[Tumblr] Initialized renderer")
+    logging.debug("Initialized renderer")
 
     kwargs = {"renderer": renderer, "twitter_token": twitter_keys["bearer_token"]}
 
     while True:
-        logging.debug("[Tumblr] Fetching task...")
         update = await queue.get()
-
-        logging.info(f'[Tumblr] Processing task "{str(update)}"')
-
-        post = await update.process(**kwargs)
-
-        if post.reblog is None:
-            response = tumblr_api.create_post(
-                blogname=post.blogname,
-                content=post.content,
-                tags=post.tags,
-                media_sources=post.media_sources,
-            )
-        else:
-            (reblog_id, parent_blogname) = post.reblog
-            response = tumblr_api.reblog_post(
-                blogname=post.blogname,
-                parent_blogname=parent_blogname,
-                id=reblog_id,
-                content=post.content,
-                tags=post.tags,
-                media_sources=post.media_sources,
-            )
-
-        if "meta" in response:
-            logging.error(f"[Tumblr] {response}")
-        else:
-            logging.info(f"[Tumblr] Posted task {str(update)} ({response})")
-
-            tumblr_id = response.get("id")
-
-            if tumblr_id is None:
-                logging.error("Error")
-            else:
-                update.cleanup(tumblr_id)
-
+        await tumblr_api.post_update(update, **kwargs)
         queue.task_done()
 
 

@@ -2,16 +2,13 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional, Tuple, TypeAlias, Union
+from pytumblr2 import TumblrRestClient
+from hopperbot.updates import Update
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class Reblog:
-    blogname: str
-    id: int
+logger.setLevel(logging.DEBUG)
 
 
 class App(Enum):
@@ -41,6 +38,46 @@ class TumblrPost:
         self.tags = tags
         self.media_sources = media_sources
         self.reblog = reblog
+
+
+class TumblrApi(TumblrRestClient):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    async def post_update(self, update: Update, **kwargs) -> None:
+        logger.info(f'[Tumblr] Processing task "{str(update)}"')
+
+        post = await update.process(**kwargs)
+
+        if post.reblog is None:
+            response = self.create_post(
+                blogname=post.blogname,
+                content=post.content,
+                tags=post.tags,
+                media_sources=post.media_sources,
+            )
+        else:
+            (reblog_id, parent_blogname) = post.reblog
+            response = self.reblog_post(
+                blogname=post.blogname,
+                parent_blogname=parent_blogname,
+                id=reblog_id,
+                content=post.content,
+                tags=post.tags,
+                media_sources=post.media_sources,
+            )
+
+        if "meta" in response:
+            logger.error(f"[Tumblr] {response}")
+        else:
+            logger.info(f"[Tumblr] Posted task {str(update)} ({response})")
+
+            tumblr_id = response.get("id")
+
+            if tumblr_id is None:
+                logger.error("Error")
+            else:
+                update.cleanup(tumblr_id)
 
 
 def image_block(identifier: str, alt_text: str, url: Optional[str] = None) -> ContentBlock:
