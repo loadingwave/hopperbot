@@ -2,51 +2,27 @@ import asyncio
 import logging
 import sqlite3 as sqlite
 import sys
-from asyncio import Queue
+from asyncio import Queue, Task
 
 from pytumblr2 import TumblrRestClient as TumblrApi
-from tweepy import StreamRule
 
+from hopperbot import config
 from hopperbot.config import twitter_updatables
-from hopperbot.updates import Update
 from hopperbot.people import Person, adapt_person, convert_person
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.twitter import TwitterListener, TwitterUpdate
+from hopperbot.twitter import TwitterListener
+from hopperbot.updates import Update
 
-TWITTER_RULE_MAX_LEN = 512
 
-
-async def setup_twitter(queue: Queue[Update]) -> asyncio.Task[None]:
+async def setup_twitter(queue: Queue[Update]) -> Task[None]:
     twitter_client = TwitterListener(queue, **twitter_keys)
 
-    await twitter_client.reset_rules()
-
-    twitter_usernames = list(twitter_updatables.keys())
-
-    if len(twitter_usernames) <= 21:
-        rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, twitter_usernames)), "rule0")
-        await twitter_client.add_rules(rule)
-    else:
-        next = twitter_usernames.pop()
-
-        # Generate at most 5 rules with as many usernames as possible per rule
-        for i in range(5):
-            rule = "from:" + next
-            next = twitter_usernames.pop()
-
-            while next is not None and len(rule) + 9 + len(next) <= TWITTER_RULE_MAX_LEN:
-                rule += " OR from:" + next
-                next = twitter_usernames.pop()
-
-            await twitter_client.add_rules(rule)
-
-            if next is None:
-                # if there are no more users to add, stop generating rules
-                break
-
-        if len(twitter_usernames) > 0:
-            logging.error(f"[Twitter] {len(twitter_usernames)} usernames did not fit in a rule")
+    if config.CHANGED:
+        usernames = list(twitter_updatables.keys())
+        await twitter_client.reset_rules()
+        await twitter_client.add_rules(usernames)
+        config.CHANGED = False
 
     expansions = [
         "author_id",
@@ -99,29 +75,14 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         if "meta" in response:
             logging.error(f"[Tumblr] {response}")
         else:
-            # display_text = response["display_text"].split(' ', 1)
-            # if len(display_text) == 2:
-            #     logging.info(f"[Tumblr] {display_text[0]} {str(update)} {display_text[1]}")
-            # else:
-            #     logging.warning(f"[Tumblr] Sucessfully posted task {str(update)}, but the display text was weird")
-
             logging.info(f"[Tumblr] Posted task {str(update)} ({response})")
 
-            if isinstance(update, TwitterUpdate):
-                if update.tweet_index is None:
-                    logging.error(f"[Twitter] Update {str(update)} has tweet_index None after process() call")
-                else:
-                    tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
+            tumblr_id = response.get("id")
 
-                    with tweets_db:
-                        tweets_db.execute(
-                            "INSERT INTO tweets(tweet_id, tweet_index, reblog_id, blogname) VALUES(?, ?, ?, ?)",
-                            (update.tweet.id, update.tweet_index, response["id"], post.blogname),
-                        )
-
-                    tweets_db.close()
-
-        update.cleanup()
+            if tumblr_id is None:
+                logging.error("Error")
+            else:
+                update.cleanup(tumblr_id)
 
         queue.task_done()
 

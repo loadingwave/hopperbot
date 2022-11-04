@@ -1,26 +1,26 @@
 import logging
 import os
-import sqlite3 as sqlite
 from asyncio import Queue
-from typing import List, Tuple, Union
+from typing import Tuple, Union, Optional
 
-from tweepy import ReferencedTweet, Response, Tweet
+from tweepy import ReferencedTweet, Response, Tweet, StreamRule
 from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
 from hopperbot.config import twitter_data, twitter_updatables
-from hopperbot.updates import ContentBlock, TumblrPost, Update
+import hopperbot.database as db
 from hopperbot.people import NONE, Person
 from hopperbot.renderer import Renderer
+from hopperbot.tumblr import ContentBlock, TumblrPost, image_block, text_block
+from hopperbot.updates import Update
+
+logger = logging.getLogger(__name__)
+
+TWITTER_RULE_MAX_LEN = 512
 
 
-def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
-    if user_id in twitter_data:
-        person = twitter_data[user_id]
-    else:
-        # This situation should never happen, but the code does not prevent it from happening,
-        # so its better to add in a check for it in my opinion
-        person = Person("someone", [NONE])
+def header_text(user_id: int, replied_to: list[int] = []) -> str:
+    person = twitter_data.get(user_id, Person("Someone", [NONE]))
 
     if replied_to:
         people = {twitter_data[id].name for id in replied_to if id in twitter_data}
@@ -32,178 +32,112 @@ def header_block(user_id: int, replied_to: List[int] = []) -> ContentBlock:
         others = sum(set(map(lambda id: (id not in twitter_data), replied_to)))
 
         if people:
-            if others >= 2:
-                replies = ", ".join(people) + " and some others"
-            elif others == 1:
-                replies = ", ".join(people) + " and someone else"
-            elif len(people) == 1:
-                replies = people.pop()
-            else:
-                # people has at least 2 elements, because it isn't falsy and its length is not 1
-                last = people.pop()
-                replies = ", ".join(people) + " and " + last
+            last = " and some others " if others > 1 else (" and someone else" if others == 1 else people.pop())
+            rest = ", ".join(people) + "and " if people else ""
+            replies = rest + last
         else:
-            if others >= 2:
-                replies = "some people"
-            elif others == 1:
-                replies = "someone"
-            else:
-                # This situation should never happen, but again, better to add in a check for it
-                replies = "no one"
+            replies = "someone" if others == 1 else "some people"
 
-        return {"type": "text", "text": f"{person.name} replied to {replies} on Twitter!"}
+        return f"{person.name} replied to {replies} on Twitter!"
     else:
-        return {
-            "type": "text",
-            "text": f"{person.name} posted on Twitter!",
-        }
-
-
-def tweet_block(identifier: str, alt_text: str, url: Union[str, None] = None) -> ContentBlock:
-    block: ContentBlock = {
-        "type": "image",
-        "media": [
-            {
-                "type": "image/png",
-                "identifier": identifier,
-            }
-        ],
-        "alt_text": alt_text,
-    }
-
-    if url is None:
-        return block
-    else:
-        block["attribution"] = {
-            "type": "app",
-            "url": url,
-            "app_name": "Twitter",
-            "display_text": "View on Twitter",
-        }
-        return block
-
-
-def query_tweet_db(tweet_id: int) -> Union[None, Tuple[int, int, str]]:
-    tweets_db = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
-
-    result = None
-
-    with tweets_db:
-        cur = tweets_db.execute("SELECT tweet_index, reblog_id, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
-        response = cur.fetchone()
-        if response is None:
-            result = None
-        else:
-            (tweet_index, reblog_id, blogname) = response
-            result = (tweet_index, reblog_id, blogname)
-
-    tweets_db.close()
-
-    return result
+        return f"{person.name} posted on Twitter!"
 
 
 async def get_thread(
     twitter_token: str, tweet: Tweet, username: str
-) -> Tuple[List[str], List[int], int, int, Union[None, Tuple[int, str]]]:
+) -> Tuple[list[str], list[int], range, Union[None, Tuple[int, str]]]:
     alt_texts = [f"Tweet by @{username}: {tweet.text}"]
-    replied_to: List[int] = []
+    conversation: list[int] = []
 
     if tweet.in_reply_to_user_id is not None:
 
         api = TwitterApi(bearer_token=twitter_token)
 
-        current_tweet = tweet
-        while current_tweet.in_reply_to_user_id is not None:
-            replied_to.append(current_tweet.in_reply_to_user_id)
+        curr_tweet = tweet
+        while curr_tweet.in_reply_to_user_id is not None:
+            conversation.append(curr_tweet.in_reply_to_user_id)
 
             # Prepare tweet request
-            if not current_tweet.referenced_tweets:
+            if not curr_tweet.referenced_tweets:
                 break
 
-            referenced: Union[None, ReferencedTweet] = next(
-                filter(lambda t: t.type == "replied_to", current_tweet.referenced_tweets)
+            next_tweet: Union[None, ReferencedTweet] = next(
+                filter(lambda t: t.type == "replied_to", curr_tweet.referenced_tweets)
             )
-            if referenced is None:
+            if next_tweet is None:
                 break
 
-            result = query_tweet_db(referenced.id)
+            result = db.get_tweet(next_tweet.id)
             if result is not None:
                 (tweet_index, tumblr_id, blog_name) = result
                 alt_texts.reverse()
-                replied_to.reverse()
-                return (alt_texts, replied_to, tweet_index + len(alt_texts), len(alt_texts), (tumblr_id, blog_name))
+                conversation.reverse()
 
-            expansions = [
-                "author_id",
-                "in_reply_to_user_id",
-                "referenced_tweets.id",
-            ]
+                thread_range = range(tweet_index, tweet_index + len(alt_texts))
+                return (alt_texts, conversation, thread_range, (tumblr_id, blog_name))
+
+            expansions = ["author_id", "in_reply_to_user_id", "referenced_tweets.id"]
 
             # Get next tweet
-            response = await api.get_tweet(id=referenced.id, expansions=expansions)
+            response = await api.get_tweet(id=next_tweet.id, expansions=expansions)
 
             if not isinstance(response, Response):
-                logging.error(f"[Twitter] API did not return a response while fetching tweet {referenced.id}")
+                logger.error(f"[Twitter] API did not return a Response while fetching tweet {next_tweet.id}")
                 break
 
-            (ref_tweet, ref_includes, ref_errors, _) = response
+            # This is a little white lie, but it is correct in the case of "users"
+            ref_includes: dict[str, dict[str, str]]
+
+            (curr_tweet, ref_includes, ref_errors, _) = response
             if ref_errors:
                 for error in ref_errors:
-                    logging.error(f"[Twitter] {error}")
+                    logger.error(f"[Twitter] {error}")
                 break
 
-            ref_author = ref_includes["users"][0]
-            alt_texts.append(f'Tweet by @{ref_author["username"]}: {ref_tweet.text}')
-            current_tweet = ref_tweet
+            ref_author = ref_includes.get("users")
+            if ref_author is None:
+                logger.error(f"[Twitter] API did not return users while fetching tweet {next_tweet.id}")
+                break
+            alt_texts.append(f'Tweet by @{ref_author.get("username")}: {curr_tweet.text}')
 
     alt_texts.reverse()
-    replied_to.reverse()
+    conversation.reverse()
 
-    return (alt_texts, replied_to, len(alt_texts), len(alt_texts), None)
+    return (alt_texts, conversation, range(len(alt_texts)), None)
 
 
 class TwitterUpdate(Update):
 
-    filenames: Union[None, List[str]] = None
-    tweet_index: Union[None, int] = None
+    filenames: Optional[list[str]] = None
+    tweet_index: Optional[int] = None
 
-    def __init__(
-        self,
-        username: str,
-        tweet: Tweet,
-    ) -> None:
+    def __init__(self, username: str, tweet: Tweet) -> None:
         self.username = username
         self.tweet = tweet
         super().__init__()
 
     # Using "type: ignore" for **kwargs
     async def process(self, renderer: Renderer, twitter_token: str, **kwargs) -> TumblrPost:  # type: ignore
-        content: List[ContentBlock] = [{}]
-        (alt_texts, conversation, tweet_index, thread_height, reblog) = await get_thread(
-            twitter_token, self.tweet, self.username
-        )
+        content: list[ContentBlock] = [{}]
+        (alt_texts, conversation, thread_range, reblog) = await get_thread(twitter_token, self.tweet, self.username)
 
-        self.tweet_index = tweet_index
-
-        content = [header_block(self.tweet.author_id, conversation)]
+        content = [text_block(header_text(self.tweet.author_id, conversation))]
 
         url = f"https://twitter.com/{self.username}/status/{self.tweet.id}"
 
         # Building update
         if not alt_texts:
-            logging.error("[Twitter] Zero alt texts found (this should be impossible :/)")
+            logger.error("[Twitter] Zero alt texts found (this should be impossible :/)")
         else:
-            last = alt_texts.pop()
-            last_block = tweet_block(f"tweet{len(alt_texts)}", last, url)
-
             for (i, alt_text) in enumerate(alt_texts):
-                block = tweet_block(f"tweet{i}", alt_text)
+                if i == len(alt_texts):
+                    block = image_block(f"tweet{i}", alt_text, url)
+                else:
+                    block = image_block(f"tweet{i}", alt_text)
                 content.append(block)
 
-            content.append(last_block)
-
         filename_prefix = str(self)
-        filenames = renderer.render_tweets(url, filename_prefix, tweet_index, thread_height)
+        filenames = renderer.render_tweets(url, filename_prefix, thread_range)
         self.filenames = filenames
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
@@ -212,14 +146,20 @@ class TwitterUpdate(Update):
             twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog
         )
 
+        self.tweet_index = thread_range.stop
         return post
 
-    def cleanup(self) -> None:
+    def cleanup(self, tumblr_id: int) -> None:
         if self.filenames:
             for filename in self.filenames:
                 os.remove(filename)
         else:
-            logging.warning("[Twitter] TwitterUpdate did not have any filenames to delete")
+            logger.warning("TwitterUpdate did not have any filenames to delete")
+
+        if self.tweet_index is None:
+            logger.error("tweet_index is not set, tumblr post not added to the database")
+        else:
+            db.add_tweet(self.tweet.id, self.tweet_index, tumblr_id, twitter_updatables[self.username])
 
     def __str__(self) -> str:
         return "tweet" + str(self.tweet.id)
@@ -233,7 +173,7 @@ class TwitterListener(AsyncStreamingClient):
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
-        logging.info("[Twitter] Listener is connected")
+        logger.info("[Twitter] Listener is connected")
 
     async def reset_rules(self) -> None:
         get_response = await self.get_rules()
@@ -242,32 +182,57 @@ class TwitterListener(AsyncStreamingClient):
             (data, _, errors, _) = get_response
             if errors:
                 for error in errors:
-                    logging.error(f'[Twitter] Trying to get rules returned an error: "{error}"')
+                    logger.error(f'[Twitter] Trying to get rules returned an error: "{error}"')
             elif data:
                 delete_response = await self.delete_rules(data)
                 if isinstance(delete_response, Response):
                     if errors:
                         for error in errors:
-                            logging.error(f'[Twitter] Trying to delete rules returned an error: "{error}"')
+                            logger.error(f'[Twitter] Trying to delete rules returned an error: "{error}"')
                 else:
-                    logging.error("[Twitter] Trying to delete rules did not return a Response somehow")
+                    logger.error("[Twitter] Trying to delete rules did not return a Response somehow")
         else:
-            logging.error("[Twitter] Trying to get rules did not return a Response somehow")
+            logger.error("[Twitter] Trying to get rules did not return a Response somehow")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
         (tweet, includes, errors, _) = response
         if errors:
             for error in errors:
-                logging.error(f"[Twitter] {error}")
+                logger.error(f"[Twitter] {error}")
             return
 
         # Extracting raw information
-        logging.debug(f"[Twitter] {tweet}")
+        logger.debug(f"[Twitter] {tweet}")
         author = includes["users"][0]
         username = author["username"]
 
         update = TwitterUpdate(username, tweet)
 
         await self.queue.put(update)
-        logging.info(f'[Twitter] produced task: "{str(update)}: {tweet.text}"')
+        logger.info(f'[Twitter] produced task: "{str(update)}: {tweet.text}"')
+
+    async def add_usernames(self, usernames: list[str]) -> None:
+        if len(usernames) <= 21:
+            rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, usernames)), "rule0")
+            await self.add_rules(rule)
+        else:
+            next = usernames.pop()
+
+            # Generate at most 5 rules with as many usernames as possible per rule
+            for i in range(5):
+                rule = "from:" + next
+                next = usernames.pop()
+
+                while next is not None and len(rule) + 9 + len(next) <= TWITTER_RULE_MAX_LEN:
+                    rule += " OR from:" + next
+                    next = usernames.pop()
+
+                await self.add_rules(rule)
+
+                if next is None:
+                    # if there are no more users to add, stop generating rules
+                    break
+
+        if len(usernames) > 0:
+            logger.error(f"[Twitter] {len(usernames)} usernames did not fit in a rule")

@@ -1,11 +1,15 @@
+import logging
 from time import sleep
-from typing import List
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.remote.remote_connection import LOGGER
+
+LOGGER.setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 class Renderer(Chrome):
@@ -22,7 +26,7 @@ class Renderer(Chrome):
         self.set_window_position(0, 0)
         self.set_window_size(2000, 2000)
 
-    def render_tweets(self, url: str, filename_prefix: str, tweet_index: int, thread_height: int = 1) -> List[str]:
+    def render_tweets(self, url: str, filename_prefix: str, thread_range: range) -> list[str]:
         """Renders a tweet, and the tweets it was responding to
 
         Parameters
@@ -32,11 +36,7 @@ class Renderer(Chrome):
         filename_prefix : str
             The n'th tweet will be saved to "filename_prefix-n.png"
         tweet_index : int
-            The index of the tweet, starting from 1. (If there were two tweets
-            before this one, the tweet index would be 3)
-        thread_height : int, optional
-            How many tweets to render, must be strictly postive and smaller or
-            equal to the tweet index. Default is 1
+            The range of tweets to be rendered, with the first tweet in the thread having index 0.
 
         Returns
         -------
@@ -63,14 +63,10 @@ class Renderer(Chrome):
 
         filenames = []
 
-        # tweet_index - thread_height is the 0-start index of the first tweet to be rendered
-        # incrementing start by 1 because the 0th element of the div is the header, not the first tweet
-        # incrementing end by one because range is exclusive
-        start = tweet_index - thread_height + 1
-        end = tweet_index + 1
-        for i in range(start, end):
+        for i in thread_range:
 
-            tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i))
+            # The first elment in the div is the header, so we need to incrment i by one
+            tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i + 1))
 
             tweet_top = tweet_element.rect["y"]
             tweet_bottom = tweet_top + tweet_element.rect["height"]
@@ -82,7 +78,7 @@ class Renderer(Chrome):
                 view_top += to_scroll
 
                 # Because we scrolled we now need to relocate the tweet
-                tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i))
+                tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i + 1))
 
             filename = f"{filename_prefix}-{i}.png"
             tweet_element.screenshot(filename)
