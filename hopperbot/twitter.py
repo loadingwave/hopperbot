@@ -10,8 +10,9 @@ from tweepy.asynchronous import AsyncStreamingClient
 import hopperbot.database as db
 from hopperbot.config import twitter_data, twitter_updatables
 from hopperbot.people import NONE, Person
-from hopperbot.renderer import Renderer
+from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
+from hopperbot.secrets import twitter_keys
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,13 @@ def header_text(user_id: int, replied_to: list[int] = []) -> str:
         return f"{person.name} posted on Twitter!"
 
 
-async def get_thread(
-    twitter_token: str, tweet: Tweet, username: str
-) -> Tuple[list[str], list[int], range, Union[None, Tuple[int, str]]]:
+async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int], range, Union[None, Tuple[int, str]]]:
     alt_texts = [f"Tweet by @{username}: {tweet.text}"]
     conversation: list[int] = []
 
     if tweet.in_reply_to_user_id is not None:
 
-        api = TwitterApi(bearer_token=twitter_token)
+        api = TwitterApi(**twitter_keys)
 
         curr_tweet = tweet
         while curr_tweet.in_reply_to_user_id is not None:
@@ -115,10 +114,9 @@ class TwitterUpdate(Update):
         self.tweet = tweet
         super().__init__()
 
-    # Using "type: ignore" for **kwargs
-    async def process(self, renderer: Renderer, twitter_token: str, **kwargs) -> TumblrPost:  # type: ignore
+    async def process(self) -> TumblrPost:
         content: list[ContentBlock] = [{}]
-        (alt_texts, conversation, thread_range, reblog) = await get_thread(twitter_token, self.tweet, self.username)
+        (alt_texts, conversation, thread_range, reblog) = await get_thread(self.tweet, self.username)
 
         content = [text_block(header_text(self.tweet.author_id, conversation))]
 
@@ -136,7 +134,7 @@ class TwitterUpdate(Update):
                 content.append(block)
 
         filename_prefix = str(self)
-        filenames = renderer.render_tweets(url, filename_prefix, thread_range)
+        filenames = RENDERER.render_tweets(url, filename_prefix, thread_range)
         self.filenames = filenames
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}

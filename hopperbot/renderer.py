@@ -85,3 +85,6 @@ class Renderer(Chrome):
             filenames.append(filename)
 
         return filenames
+
+
+RENDERER = Renderer()

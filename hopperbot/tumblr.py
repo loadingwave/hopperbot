@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Tuple, TypeAlias, Union
+from typing import Optional, Tuple, TypeAlias, Union
 
 from pytumblr2 import TumblrRestClient
 
@@ -28,7 +28,7 @@ class TumblrPost:
 
 class Update(ABC):
     @abstractmethod
-    async def process(self, **kwargs: Any) -> TumblrPost:
+    async def process(self) -> TumblrPost:
         pass
 
     @abstractmethod
@@ -45,10 +45,10 @@ class TumblrApi(TumblrRestClient):
         super().__init__(**kwargs)
         logger.info("Initialized TumblrApi")
 
-    async def post_update(self, update: Update, **kwargs: Any) -> None:
+    async def post_update(self, update: Update) -> None:
         logger.debug(f'Processing update "{str(update)}"')
 
-        post = await update.process(**kwargs)
+        post = await update.process()
 
         logger.debug(f'Got post for update "{str(update)}"')
 

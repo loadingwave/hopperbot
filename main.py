@@ -6,7 +6,6 @@ from asyncio import Queue, Task
 from hopperbot import config
 from hopperbot.config import twitter_updatables
 from hopperbot.database import init_database
-from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, Update
 from hopperbot.twitter import TwitterListener
@@ -37,13 +36,10 @@ async def setup_twitter(queue: Queue[Update]) -> Task[None]:
 
 async def setup_tumblr(queue: Queue[Update]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
-    renderer = Renderer()
-
-    kwargs = {"renderer": renderer, "twitter_token": twitter_keys["bearer_token"]}
 
     while True:
         update = await queue.get()
-        await tumblr_api.post_update(update, **kwargs)
+        await tumblr_api.post_update(update)
         queue.task_done()
 
 
