@@ -17,6 +17,7 @@ tweepy_logger = logging.getLogger("tweepy")
 tweepy_logger.setLevel(logging.INFO)
 
 logger = logging.getLogger("Twitter")
+logger.setLevel(logging.DEBUG)
 
 TWITTER_RULE_MAX_LEN = 512
 
