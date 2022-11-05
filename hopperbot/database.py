@@ -4,6 +4,7 @@ from typing import Tuple, Union
 from hopperbot.people import Person, adapt_person, convert_person
 
 logger = logging.getLogger("Database")
+logger.setLevel(logging.INFO)
 
 sqlite.register_adapter(Person, adapt_person)
 sqlite.register_converter("PERSON", convert_person)
@@ -16,7 +17,7 @@ def init_database() -> None:
     response = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tweets'").fetchone()
 
     if response is None:
-        logging.info("[Main] Created table")
+        logger.info("Created table")
         cur.execute(
             "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
         )
@@ -32,12 +33,7 @@ def get_tweet(tweet_id: int) -> Union[None, Tuple[int, int, str]]:
 
     with tweets_db:
         cur = tweets_db.execute("SELECT tweet_index, reblog_id, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
-        response = cur.fetchone()
-        if response is None:
-            result = None
-        else:
-            (tweet_index, reblog_id, blogname) = response
-            result = (tweet_index, reblog_id, blogname)
+        result = cur.fetchone()
 
     tweets_db.close()
 
@@ -52,5 +48,6 @@ def add_tweet(tweet_id: int, tweet_index: int, tumblr_id: int, blogname: str) ->
             "INSERT INTO tweets(tweet_id, tweet_index, reblog_id, blogname) VALUES(?, ?, ?, ?)",
             (tweet_id, tweet_index, tumblr_id, blogname),
         )
+        logger.debug(f"Inserted tweet id {tweet_id} with tumblr id: {tumblr_id}")
 
     tweets_db.close()
