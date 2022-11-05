@@ -9,7 +9,6 @@ from tweepy.asynchronous import AsyncStreamingClient
 
 import hopperbot.database as db
 from hopperbot.config import twitter_data, twitter_updatables
-from hopperbot.people import NONE, Person
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
@@ -19,17 +18,20 @@ logger = logging.getLogger("Twitter")
 TWITTER_RULE_MAX_LEN = 512
 
 
-def header_text(user_id: int, replied_to: list[int] = []) -> str:
-    person = twitter_data.get(user_id, Person("Someone", [NONE]))
+def header_text(user_id: int, conversation: list[int] = []) -> str:
+    person = twitter_data.get(user_id)
+    if person is None:
+        logger.error(f"Author id {user_id} was not found in twitter data")
+        return "Something went wrong with the bot and no header text could be generated :("
 
-    if replied_to:
-        people = {twitter_data[id].name for id in replied_to if id in twitter_data}
+    if conversation:
+        people = {twitter_data[id].name for id in conversation if id in twitter_data}
 
         if person.name in people:
             people.remove(person.name)
             people.add(person.emself())
 
-        others = sum(set(map(lambda id: (id not in twitter_data), replied_to)))
+        others = sum(set(map(lambda id: (id not in twitter_data), conversation)))
 
         if people:
             last = " and some others " if others > 1 else (" and someone else" if others == 1 else people.pop())
@@ -80,7 +82,7 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
             response = await api.get_tweet(id=next_tweet.id, expansions=expansions)
 
             if not isinstance(response, Response):
-                logger.error(f"[Twitter] API did not return a Response while fetching tweet {next_tweet.id}")
+                logger.error(f"API did not return a Response while fetching tweet {next_tweet.id}")
                 break
 
             # This is a little white lie, but it is correct in the case of "users"
@@ -89,12 +91,12 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
             (curr_tweet, ref_includes, ref_errors, _) = response
             if ref_errors:
                 for error in ref_errors:
-                    logger.error(f"[Twitter] {error}")
+                    logger.error(f"Error while fetching tweet {next_tweet.id}: {error}")
                 break
 
             ref_author = ref_includes.get("users")
             if ref_author is None:
-                logger.error(f"[Twitter] API did not return users while fetching tweet {next_tweet.id}")
+                logger.error(f"API did not return users while fetching tweet {next_tweet.id}")
                 break
             alt_texts.append(f'Tweet by @{ref_author.get("username")}: {curr_tweet.text}')
 
@@ -124,7 +126,7 @@ class TwitterUpdate(Update):
 
         # Building update
         if not alt_texts:
-            logger.error("[Twitter] Zero alt texts found (this should be impossible :/)")
+            logger.error("Zero alt texts found (this should be impossible :/)")
         else:
             for (i, alt_text) in enumerate(alt_texts):
                 if i == len(alt_texts):
@@ -170,7 +172,7 @@ class TwitterListener(AsyncStreamingClient):
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
-        logger.info("[Twitter] Listener is connected")
+        logger.info("Twitter Listener is connected")
 
     async def reset_rules(self) -> None:
         get_response = await self.get_rules()
@@ -179,35 +181,42 @@ class TwitterListener(AsyncStreamingClient):
             (data, _, errors, _) = get_response
             if errors:
                 for error in errors:
-                    logger.error(f'[Twitter] Trying to get rules returned an error: "{error}"')
+                    logger.error(f'Trying to get rules returned an error: "{error}"')
             elif data:
                 delete_response = await self.delete_rules(data)
                 if isinstance(delete_response, Response):
                     if errors:
                         for error in errors:
-                            logger.error(f'[Twitter] Trying to delete rules returned an error: "{error}"')
+                            logger.error(f'Trying to delete rules returned an error: "{error}"')
                 else:
-                    logger.error("[Twitter] Trying to delete rules did not return a Response somehow")
+                    logger.error("Trying to delete rules did not return a Response somehow")
         else:
-            logger.error("[Twitter] Trying to get rules did not return a Response somehow")
+            logger.error("Trying to get rules did not return a Response somehow")
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
+        # This is a little while lie, but it is correct when fetching a username
+        includes: dict[str, list[dict[str, str]]]
         (tweet, includes, errors, _) = response
         if errors:
             for error in errors:
-                logger.error(f"[Twitter] {error}")
+                logger.error(f"Got send a response, but it contained errors: {error}")
             return
 
-        # Extracting raw information
-        logger.debug(f"[Twitter] {tweet}")
-        author = includes["users"][0]
-        username = author["username"]
+        users = includes.get("users")
+        if users is None:
+            logger.error("Got send a response, but it did not contain users")
+            return
+
+        username = users[0].get("username")
+        if username is None:
+            logger.error("Got send a response, but first included user did not have a username")
+            return
 
         update = TwitterUpdate(username, tweet)
 
         await self.queue.put(update)
-        logger.info(f'[Twitter] produced task: "{str(update)}: {tweet.text}"')
+        logger.info(f'Produced update: "{str(update)}: {tweet.text}"')
 
     async def add_usernames(self, usernames: list[str]) -> None:
         if len(usernames) <= 21:
@@ -232,4 +241,4 @@ class TwitterListener(AsyncStreamingClient):
                     break
 
         if len(usernames) > 0:
-            logger.error(f"[Twitter] {len(usernames)} usernames did not fit in a rule")
+            logger.error(f"{len(usernames)} usernames did not fit in a rule, so were not added")
