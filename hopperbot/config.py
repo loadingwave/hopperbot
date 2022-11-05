@@ -3,9 +3,9 @@ from hopperbot.people import HE, IT, NONE, SHE, STAR, THEY, XEY, Person
 CHANGED = False
 
 twitter_updatables = {
-    "ranboosaysstuff": "hopperbot-test",
+    "Ranboosaysstuff": "hopperbot-test",
     "ranaltboo": "hopperbot-test",
-    "whenranboolive": "hopperbot-test",
+    "WhenRanbooLive": "hopperbot-test",
     "tommyinnit": "hopperbot-test2",
     "tommyaltinnit": "hopperbot-test2",
     "tomsimons": "hopperbot-test2"

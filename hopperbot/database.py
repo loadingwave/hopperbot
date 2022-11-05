@@ -4,7 +4,7 @@ from typing import Tuple, Optional
 from hopperbot.people import Person, adapt_person, convert_person
 
 logger = logging.getLogger("Database")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 sqlite.register_adapter(Person, adapt_person)
 sqlite.register_converter("PERSON", convert_person)

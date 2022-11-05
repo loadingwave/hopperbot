@@ -172,7 +172,11 @@ class TwitterUpdate(Update):
         if self.tweet_index is None:
             logger.error("tweet_index is not set, tumblr post not added to the database")
         else:
-            db.add_tweet(self.tweet.id, self.tweet_index, tumblr_id, twitter_updatables[self.username])
+            blogname = twitter_updatables.get(self.username.lower())
+            if blogname is None:
+                logger.error(f"No blogname found for username {self.username}")
+            else:
+                db.add_tweet(self.tweet.id, self.tweet_index, tumblr_id, blogname)
 
     def __str__(self) -> str:
         return "tweet" + str(self.tweet.id)
@@ -221,7 +225,7 @@ class TwitterListener(AsyncStreamingClient):
             return
 
         users = includes.get("users")
-        if users is None:
+        if not users:
             logger.error("Got send a response, but it did not contain users")
             return
 
