@@ -14,12 +14,20 @@ def init_database() -> None:
     con = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
     cur = con.cursor()
 
-    response = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tweets'").fetchone()
+    tweets = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tweets'").fetchone()
 
-    if response is None:
+    if tweets is None:
         logger.info("Created tweets table")
         cur.execute(
             "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
+        )
+
+    twitter_names = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='twitter_names'").fetchone()
+
+    if twitter_names is None:
+        logger.info("Created twitter names table")
+        cur.execute(
+            "CREATE TABLE twitter_names(twitter_id INTEGER PRIMARY KEY, person PERSON)"
         )
 
     con.commit()
