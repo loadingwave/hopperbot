@@ -9,7 +9,7 @@ logger.setLevel(logging.INFO)
 sqlite.register_adapter(Person, adapt_person)
 sqlite.register_converter("PERSON", convert_person)
 
-FILENAME = "tweets.db"
+FILENAME = "hopperbot.db"
 
 
 def init_database() -> None:
