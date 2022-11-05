@@ -1,18 +1,17 @@
 import logging
 import os
 from asyncio import Queue
-from typing import Tuple, Union, Optional
+from typing import Optional, Tuple, Union
 
-from tweepy import ReferencedTweet, Response, Tweet, StreamRule
+from tweepy import ReferencedTweet, Response, StreamRule, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
-from hopperbot.config import twitter_data, twitter_updatables
 import hopperbot.database as db
+from hopperbot.config import twitter_data, twitter_updatables
 from hopperbot.people import NONE, Person
 from hopperbot.renderer import Renderer
-from hopperbot.tumblr import ContentBlock, TumblrPost, image_block, text_block
-from hopperbot.updates import Update
+from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
 
 logger = logging.getLogger(__name__)
 

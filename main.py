@@ -5,12 +5,11 @@ from asyncio import Queue, Task
 
 from hopperbot import config
 from hopperbot.config import twitter_updatables
+from hopperbot.database import init_database
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.tumblr import TumblrApi
+from hopperbot.tumblr import TumblrApi, Update
 from hopperbot.twitter import TwitterListener
-from hopperbot.updates import Update
-from hopperbot.database import init_database
 
 
 async def setup_twitter(queue: Queue[Update]) -> Task[None]:

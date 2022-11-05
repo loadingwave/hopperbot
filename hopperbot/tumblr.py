@@ -1,7 +1,8 @@
 import logging
-from typing import Optional, Tuple, TypeAlias, Union, Any
+from abc import ABC, abstractmethod
+from typing import Any, Optional, Tuple, TypeAlias, Union
+
 from pytumblr2 import TumblrRestClient
-from hopperbot.updates import Update
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
 
@@ -23,6 +24,20 @@ class TumblrPost:
         self.tags = tags
         self.media_sources = media_sources
         self.reblog = reblog
+
+
+class Update(ABC):
+    @abstractmethod
+    async def process(self, **kwargs: Any) -> TumblrPost:
+        pass
+
+    @abstractmethod
+    def cleanup(self, tumblr_id: int) -> None:
+        pass
+
+    @abstractmethod
+    def __str__(self) -> str:
+        pass
 
 
 class TumblrApi(TumblrRestClient):
