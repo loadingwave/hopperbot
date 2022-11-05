@@ -10,7 +10,7 @@ from tweepy.asynchronous import AsyncStreamingClient
 import hopperbot.database as db
 from hopperbot.config import twitter_data, twitter_updatables
 from hopperbot.renderer import RENDERER
-from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
+from hopperbot.tumblr import TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
 
 tweepy_logger = logging.getLogger("tweepy")
@@ -54,20 +54,25 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
 
     if tweet.in_reply_to_user_id is not None:
 
+        logger.debug(f"Fetching thread for tweet {tweet.id}")
+
         api = TwitterApi(**twitter_keys)
 
         curr_tweet = tweet
         while curr_tweet.in_reply_to_user_id is not None:
+
             conversation.append(curr_tweet.in_reply_to_user_id)
 
             # Prepare tweet request
             if not curr_tweet.referenced_tweets:
+                logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
                 break
 
             next_tweet: Union[None, ReferencedTweet] = next(
                 filter(lambda t: t.type == "replied_to", curr_tweet.referenced_tweets)
             )
             if next_tweet is None:
+                logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
                 break
 
             result = db.get_tweet(next_tweet.id)
@@ -120,8 +125,9 @@ class TwitterUpdate(Update):
         super().__init__()
 
     async def process(self) -> TumblrPost:
-        content: list[ContentBlock] = [{}]
+
         (alt_texts, conversation, thread_range, reblog) = await get_thread(self.tweet, self.username)
+        logger.debug(f"Got thread for update {str(self)}")
 
         content = [text_block(header_text(self.tweet.author_id, conversation))]
 
@@ -144,8 +150,11 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
+        blogname = twitter_updatables.get(self.username, "test37")
+        logger.debug(f"Going to post tweet {self.tweet.id} from {self.username} to {blogname}")
+
         post = TumblrPost(
-            twitter_updatables[self.username], content, ["hb.automated", "hb.twitter"], media_sources, reblog
+            blogname, content, ["hb.automated", "hb.twitter"], media_sources, reblog
         )
 
         self.tweet_index = thread_range.stop
