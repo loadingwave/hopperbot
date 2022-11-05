@@ -51,7 +51,7 @@ async def main() -> None:
 
     handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 

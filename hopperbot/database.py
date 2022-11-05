@@ -3,7 +3,7 @@ import sqlite3 as sqlite
 from typing import Tuple, Union
 from hopperbot.people import Person, adapt_person, convert_person
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Database")
 
 sqlite.register_adapter(Person, adapt_person)
 sqlite.register_converter("PERSON", convert_person)

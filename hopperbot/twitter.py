@@ -14,7 +14,7 @@ from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Twitter")
 
 TWITTER_RULE_MAX_LEN = 512
 

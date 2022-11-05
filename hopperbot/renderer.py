@@ -9,7 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.remote_connection import LOGGER
 
 LOGGER.setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Renderer")
 
 
 class Renderer(Chrome):

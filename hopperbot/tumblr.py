@@ -6,7 +6,7 @@ from pytumblr2 import TumblrRestClient
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Tumblr")
 logger.setLevel(logging.DEBUG)
 
 
