@@ -150,7 +150,7 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
-        blogname = twitter_updatables.get(self.username, "test37")
+        blogname = twitter_updatables.get(self.username.lower(), "test37")
         logger.debug(f"Going to post tweet {self.tweet.id} from {self.username} to {blogname}")
 
         post = TumblrPost(
