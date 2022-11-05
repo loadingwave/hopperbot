@@ -8,7 +8,7 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
 import hopperbot.database as db
-from hopperbot.debug import twitter_data, twitter_updatables
+from hopperbot.config import twitter_data, twitter_updatables
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys

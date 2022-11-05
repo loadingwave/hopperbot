@@ -4,7 +4,7 @@ import sys
 from asyncio import Queue, Task
 
 from hopperbot import config
-from hopperbot.debug import twitter_updatables
+from hopperbot.config import twitter_updatables
 from hopperbot.database import init_database
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, Update
