@@ -8,6 +8,7 @@ twitter_updatables = {
     "whenranboolive": "hopperbot-test",
     "tommyinnit": "hopperbot-test2",
     "tommyaltinnit": "hopperbot-test2",
+    "tomsimons": "hopperbot-test2"
 }
 
 twitter_data = {
