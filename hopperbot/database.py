@@ -1,8 +1,28 @@
 import logging
 import sqlite3 as sqlite
 from typing import Tuple, Union
+from hopperbot.people import Person, adapt_person, convert_person
 
 logger = logging.getLogger(__name__)
+
+sqlite.register_adapter(Person, adapt_person)
+sqlite.register_converter("PERSON", convert_person)
+
+
+def init_database() -> None:
+    con = sqlite.connect("tweets.db", detect_types=sqlite.PARSE_DECLTYPES)
+    cur = con.cursor()
+
+    response = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tweets'").fetchone()
+
+    if response is None:
+        logging.info("[Main] Created table")
+        cur.execute(
+            "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
+        )
+
+    con.commit()
+    con.close()
 
 
 def get_tweet(tweet_id: int) -> Union[None, Tuple[int, int, str]]:

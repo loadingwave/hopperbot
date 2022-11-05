@@ -1,36 +1,21 @@
 import logging
-from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, List, Optional, Tuple, TypeAlias, Union
+from typing import Optional, Tuple, TypeAlias, Union, Any
 from pytumblr2 import TumblrRestClient
 from hopperbot.updates import Update
 
-ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], List[dict[str, str]]]]
+ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-
-class App(Enum):
-    Twitter = 1
-
-    def __str__(self) -> str:
-        return self.name
-
-
-@dataclass
-class Attribution:
-    url: str
-    app: App
 
 
 class TumblrPost:
     def __init__(
         self,
         blogname: str,
-        content: List[ContentBlock],
-        tags: List[str],
-        media_sources: Optional[Dict[str, str]] = None,
+        content: list[ContentBlock],
+        tags: list[str],
+        media_sources: Optional[dict[str, str]] = None,
         reblog: Optional[Tuple[int, str]] = None,
     ) -> None:
         self.blogname = blogname
@@ -41,13 +26,16 @@ class TumblrPost:
 
 
 class TumblrApi(TumblrRestClient):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: str) -> None:
         super().__init__(**kwargs)
+        logger.info("Initialized TumblrApi")
 
-    async def post_update(self, update: Update, **kwargs) -> None:
-        logger.info(f'[Tumblr] Processing task "{str(update)}"')
+    async def post_update(self, update: Update, **kwargs: Any) -> None:
+        logger.debug(f'Processing update "{str(update)}"')
 
         post = await update.process(**kwargs)
+
+        logger.debug(f'Got post for update "{str(update)}"')
 
         if post.reblog is None:
             response = self.create_post(
@@ -68,14 +56,16 @@ class TumblrApi(TumblrRestClient):
             )
 
         if "meta" in response:
-            logger.error(f"[Tumblr] {response}")
+            logger.error(f"Something went wrong posting update {str(update)}:")
+            logger.error(f"{response}")
         else:
-            logger.info(f"[Tumblr] Posted task {str(update)} ({response})")
+            logger.info(f"Posted update {str(update)}")
+            logger.debug(f"response: {response}")
 
             tumblr_id = response.get("id")
 
             if tumblr_id is None:
-                logger.error("Error")
+                logger.error(f"Update {str(update)} did not return a tumblr id (no cleanup done)")
             else:
                 update.cleanup(tumblr_id)
 
