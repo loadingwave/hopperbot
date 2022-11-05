@@ -1,6 +1,6 @@
 from hopperbot.people import HE, IT, NONE, SHE, STAR, THEY, XEY, Person
 
-CHANGED = False
+CHANGED = True
 
 twitter_updatables = {
     "ranboosaysstuff": "hopperbot-test",

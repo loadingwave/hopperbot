@@ -166,3 +166,4 @@ secrets.py
 *.png
 hopperbot.service
 debug.py
+tweets.db

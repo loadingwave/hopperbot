@@ -8,10 +8,13 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
 import hopperbot.database as db
-from hopperbot.config import twitter_data, twitter_updatables
+from hopperbot.debug import twitter_data, twitter_updatables
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import ContentBlock, TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
+
+tweepy_logger = logging.getLogger("tweepy")
+tweepy_logger.setLevel(logging.INFO)
 
 logger = logging.getLogger("Twitter")
 
@@ -176,8 +179,8 @@ class TwitterListener(AsyncStreamingClient):
 
     async def reset_rules(self) -> None:
         get_response = await self.get_rules()
-        print(get_response)
         if isinstance(get_response, Response):
+            data: list[StreamRule]
             (data, _, errors, _) = get_response
             if errors:
                 for error in errors:
@@ -188,6 +191,9 @@ class TwitterListener(AsyncStreamingClient):
                     if errors:
                         for error in errors:
                             logger.error(f'Trying to delete rules returned an error: "{error}"')
+                    else:
+                        for rule in data:
+                            logger.debug(f'Deleted rule: "{rule.value}"')
                 else:
                     logger.error("Trying to delete rules did not return a Response somehow")
         else:
@@ -221,7 +227,12 @@ class TwitterListener(AsyncStreamingClient):
     async def add_usernames(self, usernames: list[str]) -> None:
         if len(usernames) <= 21:
             rule = StreamRule(" OR ".join(map(lambda x: "from:" + x, usernames)), "rule0")
-            await self.add_rules(rule)
+            response = await self.add_rules(rule)
+            if isinstance(response, Response):
+                for added_rule in response.data:
+                    logger.debug(f'Added rule: "{added_rule.value}"')
+            else:
+                logger.error("Adding rules did not return a Response somehow")
         else:
             next = usernames.pop()
 
@@ -234,11 +245,19 @@ class TwitterListener(AsyncStreamingClient):
                     rule += " OR from:" + next
                     next = usernames.pop()
 
-                await self.add_rules(rule)
+                streamrule = StreamRule(rule, f"rule{i}")
+
+                response = await self.add_rules(streamrule)
+
+                if isinstance(response, Response):
+                    for added_rule in response.data:
+                        logger.debug(f'Added rule: "{added_rule.value}"')
+                else:
+                    logger.error("Adding rules did not return a Response somehow")
 
                 if next is None:
                     # if there are no more users to add, stop generating rules
                     break
 
-        if len(usernames) > 0:
-            logger.error(f"{len(usernames)} usernames did not fit in a rule, so were not added")
+            if len(usernames) > 0:
+                logger.error(f"{len(usernames)} usernames did not fit in a rule, so were not added")

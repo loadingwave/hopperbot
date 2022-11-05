@@ -1,10 +1,18 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, TypeAlias, Union
-
 from pytumblr2 import TumblrRestClient
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
+
+urllib_logger = logging.getLogger("urllib3")
+urllib_logger.setLevel(logging.INFO)
+
+oauth_logger = logging.getLogger("oauthlib")
+oauth_logger.setLevel(logging.INFO)
+
+requests_logger = logging.getLogger("requests_oauthlib")
+requests_logger.setLevel(logging.INFO)
 
 logger = logging.getLogger("Tumblr")
 logger.setLevel(logging.DEBUG)
