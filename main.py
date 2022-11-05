@@ -49,7 +49,7 @@ async def main() -> None:
     root_logger.setLevel(logging.DEBUG)
 
     handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
