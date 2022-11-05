@@ -19,7 +19,7 @@ def init_database() -> None:
     tweets = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tweets'").fetchone()
 
     if tweets is None:
-        logger.info("Created tweets table")
+        logger.info("Created table: tweets")
         cur.execute(
             "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
         )
@@ -27,7 +27,7 @@ def init_database() -> None:
     twitter_names = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='twitter_names'").fetchone()
 
     if twitter_names is None:
-        logger.info("Created twitter names table")
+        logger.info("Created table: twitter_names")
         cur.execute(
             "CREATE TABLE twitter_names(twitter_id INTEGER PRIMARY KEY, person PERSON)"
         )
@@ -36,31 +36,31 @@ def init_database() -> None:
     con.close()
 
 
-def get_tweet(tweet_id: int) -> Optional[Tuple[int, int, str]]:
-    tweets_db = sqlite.connect(FILENAME, detect_types=sqlite.PARSE_DECLTYPES)
-
-    result = None
-
-    with tweets_db:
-        cur = tweets_db.execute("SELECT tweet_index, reblog_id, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
-        result = cur.fetchone()
-
-    tweets_db.close()
-
-    return result
-
-
 def add_tweet(tweet_id: int, tweet_index: int, tumblr_id: int, blogname: str) -> None:
-    tweets_db = sqlite.connect(FILENAME, detect_types=sqlite.PARSE_DECLTYPES)
+    database = sqlite.connect(FILENAME, detect_types=sqlite.PARSE_DECLTYPES)
 
-    with tweets_db:
-        tweets_db.execute(
+    with database:
+        database.execute(
             "INSERT INTO tweets(tweet_id, tweet_index, reblog_id, blogname) VALUES(?, ?, ?, ?)",
             (tweet_id, tweet_index, tumblr_id, blogname),
         )
         logger.debug(f"Inserted tweet id {tweet_id} with tumblr id: {tumblr_id}")
 
-    tweets_db.close()
+    database.close()
+
+
+def get_tweet(tweet_id: int) -> Optional[Tuple[int, int, str]]:
+    database = sqlite.connect(FILENAME, detect_types=sqlite.PARSE_DECLTYPES)
+
+    result = None
+
+    with database:
+        cur = database.execute("SELECT tweet_index, reblog_id, blogname FROM tweets WHERE tweet_id = ?", [tweet_id])
+        result = cur.fetchone()
+
+    database.close()
+
+    return result
 
 
 def add_person(twitter_id: int, person: Person) -> None:
