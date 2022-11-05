@@ -22,13 +22,13 @@ def init_database() -> None:
             "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
         )
 
-    response = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='twitter_names'").fetchone()
+    # response = cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='twitter_names'").fetchone()
 
-    if response is None:
-        logger.info("Created tweets table")
-        cur.execute(
-            "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
-        )
+    # if response is None:
+    #     logger.info("Created tweets table")
+    #     cur.execute(
+    #         "CREATE TABLE tweets(tweet_id INTEGER PRIMARY KEY, tweet_index INTEGER, reblog_id INTEGER, blogname STRING)"
+    #     )
 
     con.commit()
     con.close()
