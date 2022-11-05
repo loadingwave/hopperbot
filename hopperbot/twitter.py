@@ -8,7 +8,7 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
 import hopperbot.database as db
-from hopperbot.config import twitter_data, twitter_updatables
+from hopperbot.config import twitter_updatables
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
@@ -21,20 +21,22 @@ logger = logging.getLogger("Twitter")
 TWITTER_RULE_MAX_LEN = 512
 
 
-def header_text(user_id: int, conversation: list[int] = []) -> str:
-    person = twitter_data.get(user_id)
+def header_text(user_id: int, conversation: set[int] = set()) -> str:
+    person = db.get_person(user_id)
     if person is None:
         logger.error(f"Author id {user_id} was not found in twitter data")
         return "Something went wrong with the bot and no header text could be generated :("
 
     if conversation:
-        people = {twitter_data[id].name for id in conversation if id in twitter_data}
+        possible_people = [db.get_person(id) for id in conversation]
+        # Note that people is using {} not [], so it is a set, meaning every name can only appear once
+        people = {person.name for person in possible_people if person is not None}
 
         if person.name in people:
             people.remove(person.name)
             people.add(person.emself())
 
-        others = sum(set(map(lambda id: (id not in twitter_data), conversation)))
+        others = len([1 for person in possible_people if person is None])
 
         if people:
             last = " and some others " if others > 1 else (" and someone else" if others == 1 else people.pop())
@@ -129,7 +131,7 @@ class TwitterUpdate(Update):
         (alt_texts, conversation, thread_range, reblog) = await get_thread(self.tweet, self.username)
         logger.debug(f"Got thread for update {str(self)}")
 
-        content = [text_block(header_text(self.tweet.author_id, conversation))]
+        content = [text_block(header_text(self.tweet.author_id, set(conversation)))]
 
         url = f"https://twitter.com/{self.username}/status/{self.tweet.id}"
 
