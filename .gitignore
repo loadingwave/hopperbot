@@ -167,3 +167,5 @@ secrets.py
 hopperbot.service
 debug.py
 tweets.db
+hopperbot.db
+hopperbot.db
