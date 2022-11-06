@@ -42,18 +42,28 @@ async def setup_tumblr(queue: Queue[Update]) -> None:
         queue.task_done()
 
 
-async def main() -> None:
-
-    # Setup logging (this prints to stderr, to redirect use >2 "filename" on Linux)
+def init_logging() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
 
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
+    info_handler = logging.StreamHandler(sys.stderr)
+    info_handler.setLevel(logging.INFO)
 
+    debug_handler = logging.FileHandler("debug.log")
+    debug_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
+
+    info_handler.setFormatter(formatter)
+    debug_handler.setFormatter(formatter)
+
+    root_logger.addHandler(info_handler)
+    root_logger.addHandler(debug_handler)
+
+
+async def main() -> None:
+
+    init_logging()
     init_database()
 
     # The work queue, things to update on are put in the queue, and when nothing
