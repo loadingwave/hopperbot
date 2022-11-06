@@ -153,8 +153,12 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
-        blogname = twitter_updatables.get(self.username.lower(), "test37")
-        logger.debug(f"Going to post tweet {self.tweet.id} from {self.username} to {blogname}")
+        blogname = twitter_updatables.get(self.username.lower())
+        if blogname is None:
+            logger.error(f"No blogname found for {self.username}")
+            blogname = "test37"
+        else:
+            logger.debug(f"Going to post tweet {self.tweet.id} from {self.username} to {blogname}")
 
         post = TumblrPost(
             blogname, content, ["hb.automated", "hb.twitter"], media_sources, reblog
