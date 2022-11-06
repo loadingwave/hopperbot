@@ -9,7 +9,7 @@ from hopperbot.tumblr import TumblrApi, Update
 from hopperbot.twitter import TwitterListener, init_twitter_blognames
 
 CONFIG_FILENAME = "config.toml"
-CONFIG_CHANGED = True
+CONFIG_CHANGED = False
 
 
 async def setup_twitter(queue: Queue[Update]) -> Task[None]:

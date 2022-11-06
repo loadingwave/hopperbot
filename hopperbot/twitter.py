@@ -44,6 +44,7 @@ def init_twitter_blognames(filename: str) -> Optional[list[str]]:
             ]
             for k, v in d.items()
         }
+        logger.debug(f"Initalized twitter_blognames: {twitter_blognames}")
 
         return list(twitter_blognames.keys())
 
