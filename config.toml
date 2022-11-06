@@ -1,0 +1,21 @@
+[[Update]]
+name = "Ranboo"
+blogname = "hopperbot-test"
+
+    [[Update.Twitter]]
+    username = "Ranboosaysstuff"
+    [[Update.Twitter]]
+    username = "ranaltboo"
+    [[Update.Twitter]]
+    username = "whenranboolive"
+
+[[Update]]
+name = "Tommy"
+blogname = "hopperbot-test2"
+
+    [[Update.Twitter]]
+    username = "tommyinnit"
+    [[Update.Twitter]]
+    username = "tommyaltinnit"
+    [[Update.Twitter]]
+    username = "tomsimons"

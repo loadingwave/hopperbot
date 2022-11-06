@@ -3,19 +3,22 @@ import logging
 import sys
 from asyncio import Queue, Task
 
-from hopperbot import config
-from hopperbot.config import twitter_updatables
 from hopperbot.database import init_database
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, Update
-from hopperbot.twitter import TwitterListener
+from hopperbot.twitter import TwitterListener, init_twitter_blognames
+
+CONFIG_FILENAME = "config.toml"
+CONFIG_CHANGED = True
 
 
 async def setup_twitter(queue: Queue[Update]) -> Task[None]:
+
+    usernames = init_twitter_blognames(CONFIG_FILENAME)
+
     twitter_client = TwitterListener(queue, **twitter_keys)
 
-    if config.CHANGED:
-        usernames = list(twitter_updatables.keys())
+    if CONFIG_CHANGED and usernames:
         await twitter_client.reset_rules()
         await twitter_client.add_usernames(usernames)
 
