@@ -79,12 +79,18 @@ def add_person(twitter_id: int, person: Person) -> None:
 def get_person(twitter_id: int) -> Optional[Person]:
     database = sqlite.connect(FILENAME, detect_types=sqlite.PARSE_DECLTYPES)
 
-    result = None
+    result: Optional[Tuple[Person]] = None
 
     with database:
-        cur = database.execute("SELECT person FROM twitter_names WHERE tweet_id = ?", [twitter_id])
+        # We need to pass the arguments as something with a length, so that the
+        # number of question marks can be matched with that length, wo we pass
+        # twitter_id as a list of length 1
+        cur = database.execute("SELECT person FROM twitter_names WHERE twitter_id = ?", [twitter_id])
         result = cur.fetchone()
 
     database.close()
 
-    return result
+    # Just like we needed to pass the arguments as something with length, the
+    # database always returns a tuple, so we need to take the first element of
+    # that tuple to get the actual person
+    return result[0] if result is not None else None
