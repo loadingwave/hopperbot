@@ -12,15 +12,13 @@ PyTumblr2 = "^0.2.2"
 selenium = "^4.4.3"
 Pillow = "^9.2.0"
 
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^3.0.0"
 pre-commit = "^2.20.0"
 flake8 = "^5.0.4"
 black = {version = "^22.8.0", allow-prereleases = true}
 mypy = "^0.971"
+pytest = "^7.2.0"
 
 [build-system]
 requires = ["poetry-core"]

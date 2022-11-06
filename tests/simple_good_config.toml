@@ -1,0 +1,8 @@
+[[Update]]
+name = "Thomas"
+blogname = "test37"
+
+    [[Update.Twitter]]
+    username = "space_stew"
+    [[Update.Twitter]]
+    username = "tapwaterthomas"
