@@ -1,23 +1,21 @@
 import logging
-from typing import Optional, Union, cast
+from typing import Union, cast
 
 import tomllib
 
-TWITTER_BLOGNAMES: dict[str, str | None] = {}
+TWITTER_BLOGNAMES: dict[str, str] = {}
 
-logger = logging.getLogger("hopperbot")
+logger = logging.getLogger("config")
 
 
-def init_twitter_blognames(filename: str) -> Optional[list[str]]:
+def init_twitter_blognames(filename: str) -> dict[str, str]:
     with open(filename, "rb") as f:
         data: dict[str, list[dict[str, Union[str, list[dict[str, str]]]]]] = tomllib.load(f)
 
     if data is None:
-        logger.error("Reading config returned None")
-        return None
+        raise Exception("Reading config returned None")
     else:
-        global TWITTER_BLOGNAMES
-        TWITTER_BLOGNAMES = {
+        twitter_blognames = {
             k: v
             for d in [
                 {
@@ -28,6 +26,9 @@ def init_twitter_blognames(filename: str) -> Optional[list[str]]:
             ]
             for k, v in d.items()
         }
-        logger.debug(f"Initalized twitter_blognames: {TWITTER_BLOGNAMES}")
+        logger.debug(f"Initalized twitter_blognames: {twitter_blognames}")
 
-        return list(TWITTER_BLOGNAMES.keys())
+        global TWITTER_BLOGNAMES
+        TWITTER_BLOGNAMES = twitter_blognames
+
+        return twitter_blognames

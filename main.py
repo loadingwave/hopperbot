@@ -15,7 +15,7 @@ CONFIG_CHANGED = False
 
 async def setup_twitter(queue: Queue[Update]) -> Task[None]:
 
-    usernames = init_twitter_blognames(CONFIG_FILENAME)
+    usernames = list(init_twitter_blognames(CONFIG_FILENAME).keys())
 
     twitter_client = TwitterListener(queue, **twitter_keys)
 
