@@ -48,16 +48,14 @@ def init_logging() -> None:
 
     info_handler = logging.StreamHandler(sys.stderr)
     info_handler.setLevel(logging.INFO)
+    info_formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
+    info_handler.setFormatter(info_formatter)
+    root_logger.addHandler(info_handler)
 
     debug_handler = logging.FileHandler("debug.log")
     debug_handler.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter("%(name)-8s - %(levelname)-8s - %(message)s")
-
-    info_handler.setFormatter(formatter)
-    debug_handler.setFormatter(formatter)
-
-    root_logger.addHandler(info_handler)
+    debug_formatter = logging.Formatter("%(asctime)s - %(name)-8s - %(levelname)-8s - %(message)s")
+    debug_handler.setFormatter(debug_formatter)
     root_logger.addHandler(debug_handler)
 
 
