@@ -98,14 +98,14 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
                 logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
                 break
 
-            next_tweet: Union[None, ReferencedTweet] = next(
+            ref_tweet: Union[None, ReferencedTweet] = next(
                 filter(lambda t: t.type == "replied_to", curr_tweet.referenced_tweets)
             )
-            if next_tweet is None:
+            if ref_tweet is None:
                 logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
                 break
 
-            result = db.get_tweet(next_tweet.id)
+            result = db.get_tweet(ref_tweet.id)
             if result is not None:
                 (tweet_index, tumblr_id, blog_name) = result
                 alt_texts.reverse()
@@ -117,26 +117,29 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
             expansions = ["author_id", "in_reply_to_user_id", "referenced_tweets.id"]
 
             # Get next tweet
-            response = await api.get_tweet(id=next_tweet.id, expansions=expansions)
+            response = await api.get_tweet(id=ref_tweet.id, expansions=expansions)
 
             if not isinstance(response, Response):
-                logger.error(f"API did not return a Response while fetching tweet {next_tweet.id}")
+                logger.error(f"API did not return a Response while fetching tweet {ref_tweet.id}")
                 break
 
             # This is a little white lie, but it is correct in the case of "users"
             ref_includes: dict[str, dict[str, str]]
 
-            (curr_tweet, ref_includes, ref_errors, _) = response
+            next_tweet: Tweet
+            (next_tweet, ref_includes, ref_errors, _) = response
             if ref_errors:
                 for error in ref_errors:
-                    logger.error(f"Error while fetching tweet {next_tweet.id}: {error}")
+                    logger.error(f"Error while fetching tweet {ref_tweet.id}: {error}")
                 break
 
             ref_author = ref_includes.get("users")
             if ref_author is None:
-                logger.error(f"API did not return users while fetching tweet {next_tweet.id}")
+                logger.error(f"API did not return users while fetching tweet {ref_tweet.id}")
                 break
             alt_texts.append(f'Tweet by @{ref_author.get("username")}: {curr_tweet.text}')
+
+            curr_tweet = next_tweet
 
     alt_texts.reverse()
     conversation.reverse()
