@@ -29,6 +29,7 @@ def init_twitter_blognames(filename: str) -> Optional[list[str]]:
         data: dict[str, list[dict[str, Union[str, list[dict[str, str]]]]]] = tomllib.load(f)
 
     if data is None:
+        logger.error("Reading config returned None")
         return None
     else:
         global twitter_blognames
