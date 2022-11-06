@@ -6,7 +6,8 @@ from asyncio import Queue, Task
 from hopperbot.database import init_database
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, Update
-from hopperbot.twitter import TwitterListener, init_twitter_blognames
+from hopperbot.twitter import TwitterListener
+from hopperbot.config import init_twitter_blognames
 
 CONFIG_FILENAME = "config.toml"
 CONFIG_CHANGED = False

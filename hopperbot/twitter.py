@@ -1,8 +1,7 @@
 import logging
 import os
-import tomllib
 from asyncio import Queue
-from typing import Optional, Tuple, Union, cast
+from typing import Optional, Tuple, Union
 
 from tweepy import ReferencedTweet, Response, StreamRule, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
@@ -12,6 +11,7 @@ import hopperbot.database as db
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys
+from hopperbot.config import TWITTER_BLOGNAMES
 
 tweepy_logger = logging.getLogger("tweepy")
 tweepy_logger.setLevel(logging.INFO)
@@ -20,33 +20,6 @@ logger = logging.getLogger("Twitter")
 logger.setLevel(logging.DEBUG)
 
 TWITTER_RULE_MAX_LEN = 512
-
-twitter_blognames: dict[str, str | None] = {}
-
-
-def init_twitter_blognames(filename: str) -> Optional[list[str]]:
-    with open(filename, "rb") as f:
-        data: dict[str, list[dict[str, Union[str, list[dict[str, str]]]]]] = tomllib.load(f)
-
-    if data is None:
-        logger.error("Reading config returned None")
-        return None
-    else:
-        global twitter_blognames
-        twitter_blognames = {
-            k: v
-            for d in [
-                {
-                    cast(str, twitter_update.get("username")).lower(): cast(str, update.get("blogname"))
-                    for twitter_update in cast(list[dict[str, str]], update.get("Twitter", []))
-                }
-                for update in data.get("Update", [])
-            ]
-            for k, v in d.items()
-        }
-        logger.debug(f"Initalized twitter_blognames: {twitter_blognames}")
-
-        return list(twitter_blognames.keys())
 
 
 def header_text(user_id: int, conversation: set[int] = set()) -> str:
@@ -183,7 +156,7 @@ class TwitterUpdate(Update):
 
         media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
 
-        blogname = twitter_blognames.get(self.username.lower())
+        blogname = TWITTER_BLOGNAMES.get(self.username.lower())
         if blogname is None:
             logger.error(f"No blogname found for {self.username}")
             blogname = "test37"
@@ -205,7 +178,7 @@ class TwitterUpdate(Update):
         if self.tweet_index is None:
             logger.error("tweet_index is not set, tumblr post not added to the database")
         else:
-            blogname = twitter_blognames.get(self.username.lower())
+            blogname = TWITTER_BLOGNAMES.get(self.username.lower())
             if blogname is None:
                 logger.error(f"No blogname found for username {self.username}")
             else:
