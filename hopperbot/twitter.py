@@ -7,7 +7,7 @@ from tweepy import ReferencedTweet, Response, StreamRule, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
 from tweepy.asynchronous import AsyncStreamingClient
 
-import hopperbot.database as db
+from hopperbot.database import database as db
 from hopperbot.renderer import RENDERER
 from hopperbot.tumblr import TumblrPost, Update, image_block, text_block
 from hopperbot.secrets import twitter_keys

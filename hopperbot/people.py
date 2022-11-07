@@ -73,6 +73,16 @@ class Person:
     def __str__(self) -> str:
         return f"{self.name} ({'/'.join(map(str, self.pronouns))})"
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Person):
+            if not (self.name == other.name and len(self.pronouns) == len(other.pronouns)):
+                return False
+            else:
+                return sorted(self.pronouns, key=repr) == sorted(other.pronouns, key=repr)
+
+        else:
+            return False
+
 
 def adapt_person(person: Person) -> bytes:
     pronouns = map(lambda p: repr(p), person.pronouns)

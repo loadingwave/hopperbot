@@ -3,7 +3,6 @@ import logging
 import sys
 from asyncio import Queue, Task
 
-from hopperbot.database import init_database
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, Update
 from hopperbot.twitter import TwitterListener
@@ -66,7 +65,6 @@ def init_logging() -> None:
 async def main() -> None:
 
     init_logging()
-    init_database()
 
     # The work queue, things to update on are put in the queue, and when nothing
     # else is to be done, tumblr posts whatever is in the queue to tumblr
