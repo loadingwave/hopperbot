@@ -5,30 +5,44 @@ import os
 
 
 @pytest.fixture
-def setup():
+def database() -> Database:
     filename = "test.db"
     os.remove(filename)
     return Database(filename)
 
 
-def test_add_get_tweet(setup: Database):
+def test_add_get_tweet(database: Database):
     tweet_id = 1587931744677744640
     tweet_index = 1
     tumblr_id = 699848368965533696
     blogname = "test37"
-    setup.add_tweet(tweet_id, tweet_index, tumblr_id, blogname)
+    database.add_tweet(tweet_id, tweet_index, tumblr_id, blogname)
 
-    result = setup.get_tweet(tweet_id)
+    result = database.get_tweet(tweet_id)
 
     assert result == (tweet_index, tumblr_id, blogname)
 
 
-def test_add_get_person(setup: Database):
+def test_get_nonexistant_tweet(database: Database):
+    not_tweet_id = 1
+    result = database.get_tweet(not_tweet_id)
+
+    assert result is None
+
+
+def test_add_get_person(database: Database):
     person = Person("Thomas", [HE, THEY])
     twitter_id = 1478064563358740481
 
-    setup.add_person(twitter_id, person)
+    database.add_person(twitter_id, person)
 
-    result = setup.get_person(twitter_id)
+    result = database.get_person(twitter_id)
 
     assert result == person
+
+
+def test_get_nonexistant_person(database: Database):
+    not_twitter_id = 1
+    result = database.get_person(not_twitter_id)
+
+    assert result is None
