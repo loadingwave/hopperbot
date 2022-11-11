@@ -20,7 +20,6 @@ class TwitterListener(AsyncStreamingClient):
     def __init__(self, queue: Queue[Update], bearer_token: str) -> None:
         self.queue = queue
 
-        # To be able to follow reblog trails, we need to be able to lookup tweets
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
@@ -28,25 +27,31 @@ class TwitterListener(AsyncStreamingClient):
 
     async def reset_rules(self) -> None:
         get_response = await self.get_rules()
-        if isinstance(get_response, Response):
-            data: list[StreamRule]
-            (data, _, errors, _) = get_response
-            if errors:
-                for error in errors:
-                    logger.error(f'Trying to get rules returned an error: "{error}"')
-            elif data:
-                delete_response = await self.delete_rules(data)
-                if isinstance(delete_response, Response):
-                    if errors:
-                        for error in errors:
-                            logger.error(f'Trying to delete rules returned an error: "{error}"')
-                    else:
-                        for rule in data:
-                            logger.debug(f'Deleted rule: "{rule.value}"')
-                else:
-                    logger.error("Trying to delete rules did not return a Response somehow")
-        else:
+        if not isinstance(get_response, Response):
             logger.error("Trying to get rules did not return a Response somehow")
+            return
+
+        data: list[StreamRule]
+        (data, _, errors, _) = get_response
+        if errors:
+            for error in errors:
+                logger.error(f'Trying to get rules returned an error: "{error}"')
+            return
+        if data is None:
+            logger.error('Trying to get rules returned "None" as data')
+            return
+
+        delete_response = await self.delete_rules(data)
+        if not isinstance(delete_response, Response):
+            logger.error("Trying to delete rules did not return a Response somehow")
+            return
+        if errors:
+            for error in errors:
+                logger.error(f'Trying to delete rules returned an error: "{error}"')
+            return
+
+        for rule in data:
+            logger.debug(f'Deleted rule: "{rule.value}"')
 
     async def on_response(self, response: Response) -> None:
         tweet: Tweet
