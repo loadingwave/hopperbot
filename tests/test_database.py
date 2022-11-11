@@ -8,9 +8,11 @@ from hopperbot.people import HE, THEY, Person
 
 @pytest.fixture
 def database() -> Database:
-    filename = "test.db"
-    os.remove(filename)
-    return Database(filename)
+    filename = "database.db"
+    path = os.path.join("tests", filename)
+    if os.path.exists(path):
+        os.remove(path)
+    return Database(path)
 
 
 def test_add_get_tweet(database: Database):
