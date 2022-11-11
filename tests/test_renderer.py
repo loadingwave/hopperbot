@@ -38,6 +38,16 @@ def test_two_tweets(renderer: Renderer) -> None:
         print(f"Check manually if {filename} is rendered correctly")
 
 
+def test_long_thread(renderer: Renderer) -> None:
+    url = "https://twitter.com/cuptoast/status/1551711157785751553"
+    filename_prefix = "tests/test_long_thread"
+    filenames = renderer.render_tweets(url, filename_prefix, range(0, 11))
+
+    assert len(filenames) == 11
+    for filename in filenames:
+        print(f"Check manually if {filename} is rendered correctly")
+
+
 def test_incorrect_range_start(renderer: Renderer) -> None:
     url = "https://twitter.com/space_stew/status/1588854790817165312"
     filename_prefix = "tests/test_incorrect_range_start"
