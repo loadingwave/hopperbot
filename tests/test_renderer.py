@@ -1,4 +1,5 @@
 from hopperbot.renderer import Renderer
+from selenium.common.exceptions import NoSuchElementException
 import pytest
 
 
@@ -9,7 +10,7 @@ def renderer() -> Renderer:
 
 def test_single_tweet(renderer: Renderer) -> None:
     url = "https://twitter.com/space_stew/status/1587931744677744640"
-    filename_prefix = "test_single_tweet"
+    filename_prefix = "tests/test_single_tweet"
     filenames = renderer.render_tweets(url, filename_prefix, range(0, 1))
 
     assert len(filenames) == 1
@@ -19,7 +20,7 @@ def test_single_tweet(renderer: Renderer) -> None:
 
 def test_sinlge_reply(renderer: Renderer) -> None:
     url = "https://twitter.com/space_stew/status/1587931814156722178"
-    filename_prefix = "test_sinlge_reply"
+    filename_prefix = "test/test_sinlge_reply"
     filenames = renderer.render_tweets(url, filename_prefix, range(1, 2))
 
     assert len(filenames) == 1
@@ -29,7 +30,7 @@ def test_sinlge_reply(renderer: Renderer) -> None:
 
 def test_two_tweets(renderer: Renderer) -> None:
     url = "https://twitter.com/space_stew/status/1587931814156722178"
-    filename_prefix = "test_two_tweets"
+    filename_prefix = "tests/test_two_tweets"
     filenames = renderer.render_tweets(url, filename_prefix, range(0, 2))
 
     assert len(filenames) == 2
@@ -37,9 +38,9 @@ def test_two_tweets(renderer: Renderer) -> None:
         print(f"Check manually if {filename} is rendered correctly")
 
 
-def test_negative_start_range(renderer: Renderer) -> None:
-    url = "https://twitter.com/space_stew/status/1587931814156722178"
-    filename_prefix = "test_negative_start_range"
+def test_incorrect_range_start(renderer: Renderer) -> None:
+    url = "https://twitter.com/space_stew/status/1588854790817165312"
+    filename_prefix = "tests/test_incorrect_range_start"
 
     with pytest.raises(ValueError) as e:
         renderer.render_tweets(url, filename_prefix, range(-1, 1))
@@ -47,11 +48,19 @@ def test_negative_start_range(renderer: Renderer) -> None:
     assert str(e.value) == "Thread range should have positive start"
 
 
-def test_negative_step_range(renderer: Renderer) -> None:
-    url = "https://twitter.com/space_stew/status/1587931814156722178"
-    filename_prefix = "test_negative_step_range"
+def test_incorrect_range_step(renderer: Renderer) -> None:
+    url = "https://twitter.com/space_stew/status/1588854790817165312"
+    filename_prefix = "tests/test_incorrect_range_step"
 
     with pytest.raises(ValueError) as e:
         renderer.render_tweets(url, filename_prefix, range(4, 0, -1))
 
     assert str(e.value) == "Thread range should have positive step"
+
+
+def test_incorrect_range_stop(renderer: Renderer) -> None:
+    url = "https://twitter.com/space_stew/status/1588854790817165312"
+    filename_prefix = "tests/test_incorrect_range_step"
+
+    with pytest.raises(NoSuchElementException):
+        renderer.render_tweets(url, filename_prefix, range(1, 2))
