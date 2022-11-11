@@ -1,7 +1,9 @@
+import os
+
+import pytest
+
 from hopperbot.database import Database
 from hopperbot.people import HE, THEY, Person
-import pytest
-import os
 
 
 @pytest.fixture
