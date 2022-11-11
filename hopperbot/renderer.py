@@ -6,10 +6,11 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.remote.remote_connection import LOGGER
+from selenium.webdriver.remote.remote_connection import LOGGER as selenium_logger
 
-LOGGER.setLevel(logging.WARNING)
+selenium_logger.setLevel(logging.INFO)
 logger = logging.getLogger("Renderer")
+logger.setLevel(logging.DEBUG)
 
 
 class Renderer(Chrome):
@@ -77,12 +78,16 @@ class Renderer(Chrome):
                 view_bottom += to_scroll
                 view_top += to_scroll
 
+                logger.debug(f"Scrolled by {to_scroll} while rendering {url}")
+
                 # Because we scrolled we now need to relocate the tweet
                 tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(i + 1))
 
             filename = f"{filename_prefix}-{i}.png"
             tweet_element.screenshot(filename)
             filenames.append(filename)
+
+            logger.debug(f"Created screenshot {filename}")
 
         return filenames
 
