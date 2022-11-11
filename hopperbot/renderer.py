@@ -18,7 +18,7 @@ class Renderer(Chrome):
     # Twitter variables
     FOOTER_HEIGHT = 225
     HEADER_HEIGHT = 53
-    TWEET_XPATH = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]"
+    TWEET_XPATH = "/html/body/div[1]/div/div/div[2]/main/div/div/div/div[1]/div/section/div/div/div[{}]/div/div/div[1]/article"
 
     def __init__(self) -> None:
         options = Options()
