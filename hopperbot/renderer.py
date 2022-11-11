@@ -45,6 +45,11 @@ class Renderer(Chrome):
             A list of filenames, where the rendered tweets are stored
         """
 
+        if thread_range.start < 0:
+            raise ValueError("Thread range should have positive start")
+        elif thread_range.step < 0:
+            raise ValueError("Thread range should have positive step")
+
         # Variables keeping track of current actual view of the tweets, not the viewport
         view_bottom = self.get_window_size()["height"] - self.FOOTER_HEIGHT
         view_top = self.HEADER_HEIGHT
