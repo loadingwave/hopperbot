@@ -35,3 +35,23 @@ def test_two_tweets(renderer: Renderer) -> None:
     assert len(filenames) == 2
     for filename in filenames:
         print(f"Check manually if {filename} is rendered correctly")
+
+
+def test_negative_start_range(renderer: Renderer) -> None:
+    url = "https://twitter.com/space_stew/status/1587931814156722178"
+    filename_prefix = "test_negative_start_range"
+
+    with pytest.raises(ValueError) as e:
+        renderer.render_tweets(url, filename_prefix, range(-1, 1))
+
+    assert str(e.value) == "Thread range should have positive start"
+
+
+def test_negative_step_range(renderer: Renderer) -> None:
+    url = "https://twitter.com/space_stew/status/1587931814156722178"
+    filename_prefix = "test_negative_step_range"
+
+    with pytest.raises(ValueError) as e:
+        renderer.render_tweets(url, filename_prefix, range(4, 0, -1))
+
+    assert str(e.value) == "Thread range should have positive step"
