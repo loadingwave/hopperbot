@@ -170,3 +170,4 @@ tweets.db
 hopperbot.db
 hopperbot.db
 *.db
+test.py
