@@ -59,12 +59,17 @@ class Renderer(Chrome):
         # Get the body element, so that we can send keypresses to it
         body_element = self.find_element(By.XPATH, "/html/body")
 
-        # I'm not quite sure why, but we need to do this twice, else it doesn't fully scroll to the top
-        body_element.send_keys(Keys.CONTROL + Keys.HOME)
-        sleep(1)
         body_element.send_keys(Keys.CONTROL + Keys.HOME)
 
-        # Again make sure all elements (images etc) are loaded
+        for i in range((thread_range.stop // 10) + 1):
+            # React doesn't load all the tweets in at first, so when we scroll
+            # to "home", new tweets might appear above it, the number 10 seems
+            # to be this border where it needs to fetch more tweets, (why the
+            # extra '+ 1' is nesesary I also don't know, but it is)
+            sleep(1)
+            body_element.send_keys(Keys.CONTROL + Keys.HOME)
+
+        # Again we sleep make sure all elements (images etc) are loaded
         sleep(1)
 
         filenames = []
