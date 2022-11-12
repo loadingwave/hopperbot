@@ -651,7 +651,7 @@ test = ["vcrpy (>=1.10.3)"]
 type = "git"
 url = "https://github.com/tweepy/tweepy.git"
 reference = "master"
-resolved_reference = "b18c1a6239e81cb5744fa99d392ec539de787e5c"
+resolved_reference = "3d3d58e1e8627788fe88684a515ef888038f3e3c"
 
 [[package]]
 name = "typing-extensions"
@@ -706,6 +706,14 @@ python-versions = ">=3.7.0"
 h11 = ">=0.9.0,<1"
 
 [[package]]
+name = "xmltodict"
+version = "0.13.0"
+description = "Makes working with XML feel like you are working with JSON"
+category = "main"
+optional = false
+python-versions = ">=3.4"
+
+[[package]]
 name = "yarl"
 version = "1.8.1"
 description = "Yet another URL library"
@@ -720,7 +728,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "800476f0b10936a982a588c8d572b033c4c8f445e33dc91b4e566af952e048f2"
+content-hash = "3c22c48e54a50bd62ecec21823d0426121b53afcc410c13ecfea4bc44b8e2b10"
 
 [metadata.files]
 aiohttp = [
@@ -1406,6 +1414,10 @@ virtualenv = [
 wsproto = [
     {file = "wsproto-1.2.0-py3-none-any.whl", hash = "sha256:b9acddd652b585d75b20477888c56642fdade28bdfd3579aa24a4d2c037dd736"},
     {file = "wsproto-1.2.0.tar.gz", hash = "sha256:ad565f26ecb92588a3e43bc3d96164de84cd9902482b130d0ddbaa9664a85065"},
+]
+xmltodict = [
+    {file = "xmltodict-0.13.0-py2.py3-none-any.whl", hash = "sha256:aa89e8fd76320154a40d19a0df04a4695fb9dc5ba977cbb68ab3e4eb225e7852"},
+    {file = "xmltodict-0.13.0.tar.gz", hash = "sha256:341595a488e3e01a85a9d8911d8912fd922ede5fecc4dce437eb4b6c8d037e56"},
 ]
 yarl = [
     {file = "yarl-1.8.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:abc06b97407868ef38f3d172762f4069323de52f2b70d133d096a48d72215d28"},

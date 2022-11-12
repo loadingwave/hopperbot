@@ -11,6 +11,7 @@ tweepy = {git = "https://github.com/tweepy/tweepy.git", branch="master", extras=
 PyTumblr2 = "^0.2.2"
 selenium = "^4.4.3"
 Pillow = "^9.2.0"
+xmltodict = "^0.13.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest-cov = "^3.0.0"

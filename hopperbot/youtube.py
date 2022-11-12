@@ -1,5 +1,7 @@
-from aiohttp import web
 from pprint import pprint
+
+import xmltodict
+from aiohttp import web
 
 
 async def handle(request: web.Request):
@@ -9,8 +11,10 @@ async def handle(request: web.Request):
 
 
 async def print_post(request: web.Request):
-    feed = await request.post()
-    pprint(feed)
+    if request.content_type == 'application/atom+xml':
+        feed = await request.text()
+        notification = xmltodict.parse(feed)
+        pprint(notification)
     return web.Response(status=204)
 
 app = web.Application()
