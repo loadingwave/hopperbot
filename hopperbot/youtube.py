@@ -9,7 +9,8 @@ async def handle(request: web.Request):
 
 
 async def print_post(request: web.Request):
-    pprint(request.post())
+    feed = await request.post()
+    pprint(feed)
     return web.Response(status=204)
 
 app = web.Application()
