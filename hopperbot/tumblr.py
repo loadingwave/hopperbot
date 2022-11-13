@@ -123,6 +123,17 @@ def image_block(identifier: str, alt_text: str, url: Optional[str] = None) -> Co
         return block
 
 
+def video_block(url: str) -> ContentBlock:
+    block: ContentBlock = {
+        "type": "video",
+        "url": url,
+    }
+    if "youtube.com" in url:
+        block["provider"] = "youtube"
+
+    return block
+
+
 def text_block(text: str) -> ContentBlock:
     return {
         "type": "text",
