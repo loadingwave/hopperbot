@@ -4,7 +4,7 @@ from asyncio import Queue
 from tweepy import Response, StreamRule, Tweet
 from tweepy.asynchronous import AsyncStreamingClient
 
-from hopperbot.tumblr import Update
+from hopperbot.tumblr import TumblrPost
 from hopperbot.twitter_update import TwitterUpdate
 
 tweepy_logger = logging.getLogger("tweepy")
@@ -17,9 +17,8 @@ TWITTER_RULE_MAX_LEN = 512
 
 
 class TwitterListener(AsyncStreamingClient):
-    def __init__(self, queue: Queue[Update], bearer_token: str) -> None:
+    def __init__(self, queue: Queue[TumblrPost], bearer_token: str) -> None:
         self.queue = queue
-
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
