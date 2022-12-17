@@ -4,6 +4,8 @@ from typing import Optional, Tuple, TypeAlias, Union
 from pytumblr2 import TumblrRestClient as TumblrApi
 import re
 from hopperbot.renderer import Renderer
+from hopperbot.twitter_update import TwitterRenderable
+from abc import ABC, abstractclassmethod
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
 
@@ -20,25 +22,17 @@ logger = logging.getLogger("Tumblr")
 logger.setLevel(logging.DEBUG)
 
 
-class TwitterRenderable:
-    def __init__(self, url: str, thread_range: range, ids: list[str], filename_prefix: str) -> None:
-        self.url = url
-        if len(thread_range) != len(ids):
-            raise ValueError("Thread range and number of ids should be equal")
-        self.thread_range = thread_range
-        self.ids = ids
-        self.filename_prefix = filename_prefix
-
+class Renderable(ABC):
+    @abstractclassmethod
     def render(self, renderer: Renderer) -> dict[str, str]:
-        filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread_range)
-        return {id : filename for (id, filename) in zip(self.ids, filenames)}
+        return {}
 
 
 class TumblrPost:
     def __init__(
         self,
         content: list[ContentBlock] = [],
-        renderables: list[TwitterRenderable] = [],
+        renderables: list[Renderable] = [],
         media_sources: dict[str, str] = {},
         tags: list[str] = [],
         reblog: Optional[Tuple[int, str]] = None,
