@@ -1,5 +1,6 @@
 import logging
 from time import sleep
+from typing import Optional
 
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -27,7 +28,7 @@ class Renderer(Chrome):
         self.set_window_position(0, 0)
         self.set_window_size(2000, 2000)
 
-    def render_tweets(self, url: str, filename_prefix: str, thread_range: range) -> list[str]:
+    def render_tweets(self, url: str, filename_prefix: str, thread_range: Optional[range]) -> list[str]:
         """Renders a tweet, and the tweets it was responding to
 
         Parameters
@@ -44,8 +45,14 @@ class Renderer(Chrome):
         List[str]
             A list of filenames, where the rendered tweets are stored
         """
+        if thread_range is None:
+            self.get(url)
+            sleep(1)
+            tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(1))
+            tweet_element.screenshot(filename_prefix)
+            return [filename_prefix]
 
-        if thread_range.start < 0:
+        elif thread_range.start < 0:
             raise ValueError("Thread range should have positive start")
         elif thread_range.step < 0:
             raise ValueError("Thread range should have positive step")
