@@ -1,18 +1,31 @@
 import logging
-import os
 from typing import Optional, Tuple, Union
 
 from tweepy import ReferencedTweet, Response, Tweet
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-from hopperbot.config import TWITTER_BLOGNAMES
+# from hopperbot.config import TWITTER_BLOGNAMES
 from hopperbot.database import database as db
-from hopperbot.renderer import RENDERER
+from hopperbot.renderer import Renderer
 from hopperbot.secrets import twitter_keys
-from hopperbot.tumblr import TumblrPost, Update, image_block, text_block
+from hopperbot.tumblr import TumblrPost, Renderable
 
 logger = logging.getLogger("Twitter")
 logger.setLevel(logging.DEBUG)
+
+
+class TwitterRenderable(Renderable):
+    def __init__(self, url: str, thread_range: range, ids: list[str], filename_prefix: str) -> None:
+        self.url = url
+        if len(thread_range) != len(ids):
+            raise ValueError("Thread range and number of ids should be equal")
+        self.thread_range = thread_range
+        self.ids = ids
+        self.filename_prefix = filename_prefix
+
+    def render(self, renderer: Renderer) -> dict[str, str]:
+        filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread_range)
+        return {id : filename for (id, filename) in zip(self.ids, filenames)}
 
 
 def header_text(user_id: int, conversation: set[int] = set()) -> str:
@@ -113,69 +126,21 @@ async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int],
     return (alt_texts, conversation, range(len(alt_texts)), None)
 
 
-class TwitterUpdate(Update):
+class TwitterUpdate(TumblrPost):
 
-    filenames: Optional[list[str]] = None
-    tweet_index: Optional[int] = None
+    thread_range: range
+    alt_texts: list[str]
+    conversation: list[int]
 
     def __init__(self, username: str, tweet: Tweet) -> None:
         self.username = username
         self.tweet = tweet
+        self.alt_texts = [tweet.text]
+        self.conversation = [tweet.author_id]
+        author = db.get_person(tweet.author_id)
+        if author is None:
+            logging.warning(f"Captured tweet from unknown twitter account ({tweet.author_id})")
+            self.add_text_block("Someone posted on twitter!")
+        else:
+            self.add_text_block(f"{author.name.capitalize()} posted on twitter!")
         super().__init__()
-
-    async def process(self) -> TumblrPost:
-
-        (alt_texts, conversation, thread_range, reblog) = await get_thread(self.tweet, self.username)
-        logger.debug(f"Got thread for update {str(self)}")
-
-        content = [text_block(header_text(self.tweet.author_id, set(conversation)))]
-
-        url = f"https://twitter.com/{self.username}/status/{self.tweet.id}"
-
-        # Building update
-        if not alt_texts:
-            logger.error("Zero alt texts found (this should be impossible :/)")
-        else:
-            for (i, alt_text) in enumerate(alt_texts):
-                if i == len(alt_texts):
-                    block = image_block(f"tweet{i}", alt_text, url)
-                else:
-                    block = image_block(f"tweet{i}", alt_text)
-                content.append(block)
-
-        filename_prefix = str(self)
-        filenames = RENDERER.render_tweets(url, filename_prefix, thread_range)
-        self.filenames = filenames
-
-        media_sources = {f"tweet{i}": filename for (i, filename) in enumerate(filenames)}
-
-        blogname = TWITTER_BLOGNAMES.get(self.username.lower())
-        if blogname is None:
-            logger.error(f"No blogname found for {self.username}")
-            blogname = "test37"
-        else:
-            logger.debug(f"Going to post tweet {self.tweet.id} from {self.username} to {blogname}")
-
-        post = TumblrPost(blogname, content, ["hb.automated", "hb.twitter"], media_sources, reblog)
-
-        self.tweet_index = thread_range.stop
-        return post
-
-    def cleanup(self, tumblr_id: int) -> None:
-        if self.filenames:
-            for filename in self.filenames:
-                os.remove(filename)
-        else:
-            logger.warning("TwitterUpdate did not have any filenames to delete")
-
-        if self.tweet_index is None:
-            logger.error("tweet_index is not set, tumblr post not added to the database")
-        else:
-            blogname = TWITTER_BLOGNAMES.get(self.username.lower())
-            if blogname is None:
-                logger.error(f"No blogname found for username {self.username}")
-            else:
-                db.add_tweet(self.tweet.id, self.tweet_index, tumblr_id, blogname)
-
-    def __str__(self) -> str:
-        return "tweet" + str(self.tweet.id)
