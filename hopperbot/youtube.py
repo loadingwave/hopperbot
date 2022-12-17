@@ -4,25 +4,11 @@ from typing import Union, cast
 import xmltodict
 from aiohttp import web
 
-from hopperbot.tumblr import Update, TumblrPost, text_block, video_block
-
 
 async def handle(request: web.Request):
     name = request.match_info.get("name", "Anonymous")
     text = "Hello, " + name
     return web.Response(text=text)
-
-
-class YoutubeUpdate(Update):
-    def __init__(self, channel_id: str, url: str) -> None:
-        self.channel_id = channel_id
-        self.url = url
-
-
-def youtube_update(channel_id: str, url: str) -> TumblrPost:
-    header = text_block("Name posted on youtube!")
-    yt_block = video_block("https://www.youtube.com/watch?v=MCKeXhta3H0")
-    return TumblrPost("test37", [header, yt_block], tags=[])
 
 
 def parse_feed(source: str) -> tuple[str, str, bool]:
@@ -51,13 +37,12 @@ def parse_feed(source: str) -> tuple[str, str, bool]:
     updated_str = updated_str[:19] + updated_str[-6:]
     updated_time = datetime.strptime(updated_str, time_format)
 
-    diff = updated_time - published_time
-
-    new_video = diff.seconds == 0
+    new_video = (updated_time - published_time).seconds == 0
 
     url_element = entry.get("link")
     if url_element is None:
         raise ValueError("No url found in xml")
+
     url_element = cast(dict[str, str], url_element)
     url = cast(str | None, url_element.get("@href"))
     if url is None:
@@ -67,6 +52,7 @@ def parse_feed(source: str) -> tuple[str, str, bool]:
     if channel_id is None:
         raise ValueError("No channel_id found in xml")
     channel_id = cast(str, channel_id)
+
     return (channel_id, url, new_video)
 
 
