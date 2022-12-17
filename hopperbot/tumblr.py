@@ -1,7 +1,9 @@
+import os
 import logging
-from abc import ABC, abstractmethod
 from typing import Optional, Tuple, TypeAlias, Union
-from pytumblr2 import TumblrRestClient
+from pytumblr2 import TumblrRestClient as TumblrApi
+import re
+from hopperbot.renderer import Renderer
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
 
@@ -18,124 +20,153 @@ logger = logging.getLogger("Tumblr")
 logger.setLevel(logging.DEBUG)
 
 
+class TwitterRenderable:
+    def __init__(self, url: str, thread_range: range, ids: list[str], filename_prefix: str) -> None:
+        self.url = url
+        if len(thread_range) != len(ids):
+            raise ValueError("Thread range and number of ids should be equal")
+        self.thread_range = thread_range
+        self.ids = ids
+        self.filename_prefix = filename_prefix
+
+    def render(self, renderer: Renderer) -> dict[str, str]:
+        filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread_range)
+        return {id : filename for (id, filename) in zip(self.ids, filenames)}
+
+
 class TumblrPost:
     def __init__(
         self,
-        blogname: str,
-        content: list[ContentBlock],
-        tags: list[str],
-        media_sources: Optional[dict[str, str]] = None,
+        content: list[ContentBlock] = [],
+        renderables: list[TwitterRenderable] = [],
+        media_sources: dict[str, str] = {},
+        tags: list[str] = [],
         reblog: Optional[Tuple[int, str]] = None,
     ) -> None:
-        self.blogname = blogname
         self.content = content
-        self.tags = tags
+        self.renderables = renderables
         self.media_sources = media_sources
+        self.tags = tags
         self.reblog = reblog
 
+    def add_text_block(self, text: str) -> None:
+        self.content.append({
+            "type": "text",
+            "text": text,
+        })
 
-class Update(ABC):
-    @abstractmethod
-    async def process(self) -> TumblrPost:
-        pass
-
-    @abstractmethod
-    def cleanup(self, tumblr_id: int) -> None:
-        pass
-
-    @abstractmethod
-    def __str__(self) -> str:
-        pass
-
-
-class TumblrApi(TumblrRestClient):
-    def __init__(self, **kwargs: str) -> None:
-        super().__init__(**kwargs)
-        logger.info("Initialized TumblrApi")
-
-    async def post_update(self, update: Update) -> None:
-        logger.debug(f'Processing update "{str(update)}"')
-
-        post = await update.process()
-
-        logger.debug(f'Got post for update "{str(update)}"')
-
-        if post.reblog is None:
-            response = self.create_post(
-                blogname=post.blogname,
-                content=post.content,
-                tags=post.tags,
-                media_sources=post.media_sources,
-            )
-        else:
-            (reblog_id, parent_blogname) = post.reblog
-            response = self.reblog_post(
-                blogname=post.blogname,
-                parent_blogname=parent_blogname,
-                id=reblog_id,
-                content=post.content,
-                tags=post.tags,
-                media_sources=post.media_sources,
-            )
-
-        if "meta" in response:
-            logger.error(f"Something went wrong posting update {str(update)}:")
-            logger.error(f"{response}")
-        else:
-            logger.info(f"Posted update {str(update)}")
-            logger.debug(f"response: {response}")
-
-            tumblr_id = response.get("id")
-
-            if tumblr_id is None:
-                logger.error(f"Update {str(update)} did not return a tumblr id (no cleanup done)")
-            else:
-                update.cleanup(tumblr_id)
-
-
-def image_block(identifier: str, alt_text: str, url: Optional[str] = None) -> ContentBlock:
-    block: ContentBlock = {
-        "type": "image",
-        "media": [
-            {
-                "type": "image/png",
-                "identifier": identifier,
+    def add_image_block(self, source: str, alt_text: Optional[str] = None, attribution: Optional[str] = None) -> None:
+        block: ContentBlock
+        if re.fullmatch("https://64.media.tumblr.com/*", source):
+            block = {
+                "type": "image",
+                "media": {
+                    "url": source
+                }
             }
-        ],
-        "alt_text": alt_text,
-    }
+            self.content.append(block)
+        else:
+            block = {
+                "type": "image",
+                "media": [
+                    {
+                        "type": "image/png",
+                        "identifier": source,
+                    }
+                ]
+            }
 
-    if url is None:
-        return block
-    elif "twitter.com" in url:
-        block["attribution"] = {
-            "type": "app",
+        if alt_text:
+            block["alt_text"] = alt_text
+
+        if attribution is None:
+            self.content.append(block)
+        elif re.fullmatch("https://twitter.com/*/status/*", attribution):
+            block["attribution"] = {
+                "type": "app",
+                "url": attribution,
+                "app_name": "twitter",
+                "display_text": "View on Twitter",
+            }
+            self.content.append(block)
+        else:
+            block["attribution"] = {
+                "type": "link",
+                "url": attribution,
+            }
+            self.content.append(block)
+
+    def add_link_block(self) -> None:
+        raise NotImplementedError
+
+    def add_audio_block(self) -> None:
+        raise NotImplementedError
+
+    def add_video_block(self, url: str) -> None:
+        block: ContentBlock = {
+            "type": "video",
             "url": url,
-            "app_name": "twitter",
-            "display_text": "View on Twitter",
         }
-        return block
-    else:
-        block["attribution"] = {
-            "type": "link",
-            "url": url,
+        if "youtube.com" in url:
+            block["provider"] = "youtube"
+        elif "twitch.tv" in url:
+            raise NotImplementedError
+        else:
+            # TODO: implement uploading logic
+            raise NotImplementedError
+
+        self.content.append(block)
+
+    def add_tweets(self, url: str, alt_texts: list[str], thread: range):
+        if not len(alt_texts) == len(thread):
+            raise ValueError("All tweets should have an alt text")
+
+        start = len(self.content)
+        image_ids = [f"image{index}" for index in range(start, start + len(thread))]
+        renderable = TwitterRenderable(url, thread, image_ids, f"tweet-{str(start)}-")
+        self.renderables.append(renderable)
+
+        last_image_id = image_ids.pop()
+        last_alt_text = alt_texts.pop()
+
+        for image_id, alt_text in zip(image_ids, alt_texts):
+            self.add_image_block(image_id, alt_text)
+
+        self.add_image_block(last_image_id, last_alt_text, url)
+
+    def post(self, blogname: str, api: TumblrApi) -> None:
+        # Render the images
+        renderer = Renderer()
+        for renderable in self.renderables:
+            media_sources = renderable.render(renderer)
+            self.media_sources = self.media_sources | media_sources
+
+        # Post the post
+        kwargs = {
+            "blogname": blogname,
+            "content": self.content,
+            "tags": ["hb.automated"],
+            "media_sources": self.media_sources,
         }
-        return block
 
+        if self.reblog is None:
+            response = api.create_post(**kwargs)
+        else:
+            kwargs["parent_blogname"] = self.reblog[0]
+            kwargs["id"] = self.reblog[1]
+            response = api.reblog_post(**kwargs)
 
-def video_block(url: str) -> ContentBlock:
-    block: ContentBlock = {
-        "type": "video",
-        "url": url,
-    }
-    if "youtube.com" in url:
-        block["provider"] = "youtube"
+        print(response)
 
-    return block
+        # Clean up the rendered images
+        for filename in self.media_sources.values():
+            if os.path.exists(filename):
+                os.remove(filename)
+            else:
+                logger.warning(f"The following filename could not be deleted: {filename}")
 
+        # Add to the tweet database
+        raise NotImplementedError("Post should have to be added to tweet database, but this is not implemented yet")
 
-def text_block(text: str) -> ContentBlock:
-    return {
-        "type": "text",
-        "text": text,
-    }
+    def __str__(self) -> str:
+        return f"Tumlbrpost with {len(self.content)} content blocks"
