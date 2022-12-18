@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple, Union, cast, Any
+from typing import Optional, cast, Any
 
 from tweepy import ReferencedTweet, Response, Tweet, User
 from tweepy.asynchronous import AsyncClient as TwitterApi
@@ -9,159 +9,96 @@ from hopperbot.database import database as db
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import twitter_keys
 from hopperbot.tumblr import TumblrPost, Renderable
+from hopperbot.errors import TwitterError, NoReferencedTweetError
 
 logger = logging.getLogger("Twitter")
 logger.setLevel(logging.DEBUG)
 
 
-class TwitterException(Exception):
-    pass
-
-
-class TweetNotFound(TwitterException):
-    pass
-
-
-class NoReferencedTweet(TwitterException):
-    pass
-
-
-class InvalidTwitterResponse(TwitterException):
-    pass
-
-
 class TwitterRenderable(Renderable):
-    def __init__(self, url: str, thread_range: range, ids: list[str], filename_prefix: str) -> None:
-        self.url = url
-        if len(thread_range) != len(ids):
+    def __init__(self, url: str, ids: list[str], filename_prefix: str, thread: Optional[range] = None) -> None:
+        if thread is None:
+            if len(ids) != 1:
+                raise ValueError("Thread range and number of ids should be equal")
+        elif len(thread) != len(ids):
             raise ValueError("Thread range and number of ids should be equal")
-        self.thread_range = thread_range
+
+        self.url = url
+        self.thread = thread
         self.ids = ids
         self.filename_prefix = filename_prefix
 
     def render(self, renderer: Renderer) -> dict[str, str]:
-        filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread_range)
+        filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread)
         return {id : filename for (id, filename) in zip(self.ids, filenames)}
-
-
-def header_text(user_id: int, conversation: set[int] = set()) -> str:
-    person = db.get_person(user_id)
-    if person is None:
-        logger.error(f"Author id {user_id} was not found in twitter data")
-        return "Something went wrong with the bot and no header text could be generated :("
-
-    if conversation:
-        possible_people = [db.get_person(id) for id in conversation]
-        # Note that people is using {} not [], so it is a set, meaning every name can only appear once
-        people = {person.name for person in possible_people if person is not None}
-
-        if person.name in people:
-            people.remove(person.name)
-            people.add(person.emself())
-
-        others = len([1 for person in possible_people if person is None])
-
-        if people:
-            last = " and some others " if others > 1 else (" and someone else" if others == 1 else people.pop())
-            rest = ", ".join(people) + "and " if people else ""
-            replies = rest + last
-        else:
-            replies = "someone" if others == 1 else "some people"
-
-        return f"{person.name} replied to {replies} on Twitter!"
-    else:
-        return f"{person.name} posted on Twitter!"
-
-
-async def get_thread(tweet: Tweet, username: str) -> Tuple[list[str], list[int], range, Optional[Tuple[int, str]]]:
-    alt_texts = [f"Tweet by @{username}: {tweet.text}"]
-    conversation: list[int] = []
-
-    if tweet.in_reply_to_user_id is not None:
-
-        logger.debug(f"Fetching thread for tweet {tweet.id}")
-
-        api = TwitterApi(**twitter_keys)
-
-        curr_tweet = tweet
-        while curr_tweet.in_reply_to_user_id is not None:
-
-            conversation.append(curr_tweet.in_reply_to_user_id)
-
-            # Prepare tweet request
-            if not curr_tweet.referenced_tweets:
-                logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
-                break
-
-            ref_tweet: Union[None, ReferencedTweet] = next(
-                filter(lambda t: t.type == "replied_to", curr_tweet.referenced_tweets)
-            )
-            if ref_tweet is None:
-                logger.error(f"in_reply_to_user_id is set for tweet {curr_tweet.id}, but no referenced_tweets exist")
-                break
-
-            result = db.get_tweet(ref_tweet.id)
-            if result is not None:
-                (tweet_index, tumblr_id, blog_name) = result
-                alt_texts.reverse()
-                conversation.reverse()
-
-                thread_range = range(tweet_index, tweet_index + len(alt_texts))
-                return (alt_texts, conversation, thread_range, (tumblr_id, blog_name))
-
-            expansions = ["author_id", "in_reply_to_user_id", "referenced_tweets.id"]
-
-            # Get next tweet
-            response = await api.get_tweet(id=ref_tweet.id, expansions=expansions)
-
-            if not isinstance(response, Response):
-                logger.error(f"API did not return a Response while fetching tweet {ref_tweet.id}")
-                break
-
-            # This is a little white lie, but it is correct in the case of "users"
-            ref_includes: dict[str, dict[str, str]]
-
-            next_tweet: Tweet
-            (next_tweet, ref_includes, ref_errors, _) = response
-            if ref_errors:
-                for error in ref_errors:
-                    logger.error(f"Error while fetching tweet {ref_tweet.id}: {error}")
-                break
-
-            ref_author = ref_includes.get("users")
-            if ref_author is None:
-                logger.error(f"API did not return users while fetching tweet {ref_tweet.id}")
-                break
-            alt_texts.append(f'Tweet by @{ref_author.get("username")}: {curr_tweet.text}')
-
-            curr_tweet = next_tweet
-
-    alt_texts.reverse()
-    conversation.reverse()
-
-    return (alt_texts, conversation, range(len(alt_texts)), None)
 
 
 class TwitterUpdate(TumblrPost):
 
-    thread_range: range
+    thread: range = range(0, 1)
     alt_texts: list[str]
-    conversation: list[int]
+    conversation: set[int] = set()
 
     def __init__(self, username: str, tweet: Tweet) -> None:
-        self.username = username
         self.tweet = tweet
-        self.alt_texts = [tweet.text]
-        self.conversation = [tweet.author_id]
-        author = db.get_person(tweet.author_id)
-        if author is None:
-            logging.warning(f"Captured tweet from unknown twitter account ({tweet.author_id})")
-            self.add_text_block("Someone posted on twitter!")
-        else:
-            self.add_text_block(f"{author.name.capitalize()} posted on twitter!")
+        self.alt_texts = [f'Tweet by @{username}: {tweet.text}']
+        self.url = f"https://twitter.com/{username}/status/{tweet.id}"
         super().__init__()
 
-    def get_replyee(self, tweet: Tweet) -> Optional[int]:
+    def add_tweet(self):
+        image_id = f"image{len(self.content)}"
+        renderable = TwitterRenderable(self.url, [image_id], f"tweet-{len(self.content)}-")
+
+        self.renderables.append(renderable)
+        self.add_image_block(image_id, self.alt_texts[0], self.url)
+
+    def add_tweets(self):
+        if not len(self.alt_texts) == len(self.thread):
+            raise ValueError("All tweets should have an alt text")
+
+        start = len(self.content)
+        image_ids = [f"image{index}" for index in range(start, start + len(self.thread))]
+        renderable = TwitterRenderable(self.url, image_ids, f"tweet-{str(start)}-", self.thread)
+        self.renderables.append(renderable)
+
+        last_image_id = image_ids.pop()
+        last_alt_text = self.alt_texts.pop()
+
+        for image_id, alt_text in zip(image_ids, self.alt_texts):
+            self.add_image_block(image_id, alt_text)
+
+        self.add_image_block(last_image_id, last_alt_text, self.url)
+
+    def add_header(self) -> None:
+        person = db.get_person(self.tweet.author_id)
+        if person is None:
+            logger.error(f"Author id {self.tweet.author_id} was not found in twitter data")
+            self.add_text_block("Something went wrong with the bot and no header text could be generated :(")
+            return
+
+        if self.conversation:
+            possible_people = [db.get_person(id) for id in self.conversation]
+            # Note that people is using {} not [], so it is a set, meaning every name can only appear once
+            people = {person.name for person in possible_people if person is not None}
+
+            if person.name in people:
+                people.remove(person.name)
+                people.add(person.emself())
+
+            others = len([1 for person in possible_people if person is None])
+
+            if people:
+                last = " and some others " if others > 1 else (" and someone else" if others == 1 else people.pop())
+                rest = ", ".join(people) + "and " if people else ""
+                replyees = rest + last
+            else:
+                replyees = "someone" if others == 1 else "some people"
+
+            self.add_text_block(f"{person.name.capitalize()} replied to {replyees} on Twitter!")
+        else:
+            self.add_text_block(f"{person.name} posted on Twitter!")
+
+    def get_replyee_id(self, tweet: Tweet) -> Optional[int]:
         """Gets the id of the tweet the supplied tweet was replying to. Returns
         None if the tweet didn't reply to anyone. If such a tweet should exist
         but doesnt, the function throws a NoReferencedTweet exeption"""
@@ -170,28 +107,29 @@ class TwitterUpdate(TumblrPost):
 
         if not tweet.referenced_tweets:
             logger.error(f"in_reply_to_user_id is set for tweet {tweet.id}, but no referenced_tweets exist")
-            raise NoReferencedTweet
+            raise NoReferencedTweetError
 
         ref_tweet = next(filter(lambda t: t.type == "replied_to", tweet.referenced_tweets))
         ref_tweet = cast(ReferencedTweet, ref_tweet)
         if ref_tweet is None:
             logger.error(f"in_reply_to_user_id is set for tweet {tweet.id}, but no referenced_tweets exist")
-            raise NoReferencedTweet
+            raise NoReferencedTweetError
 
         return ref_tweet.id
 
-    async def fetch_and_process_tweet(self, tweet_id: int, api: TwitterApi) -> Tweet:
+    async def fetch_and_process_tweet(self, tweet_id: int) -> Tweet:
         """Gets and returns the tweet in question and updates the conversation and alt texts
         Raises a TwitterException if anything goes wrong
         """
         # Fetch tweet:
+        api = TwitterApi(**twitter_keys)
         expansions = ["author_id", "in_reply_to_user_id", "referenced_tweets.id"]
         response = await api.get_tweet(id=tweet_id, expansions=expansions)
 
         # Error handling:
         if not isinstance(response, Response):
             logger.error(f"API did not return a Response while fetching tweet {tweet_id}")
-            raise TwitterException
+            raise TwitterError
 
         includes: dict[str, Any]
         tweet: Tweet
@@ -199,25 +137,45 @@ class TwitterUpdate(TumblrPost):
         if errors:
             for error in errors:
                 logger.error(f"Error while fetching tweet {tweet_id}: {error}")
-            raise TwitterException
+            raise TwitterError
 
         users = includes.get("users")
         if not users:
             # This condition filters both for None and an empty list
             logger.error(f"API did not return users while fetching tweet {tweet_id}")
-            raise TwitterException
+            raise TwitterError
         users = cast(list[User], users)
 
         author = users[0]
 
         # Process the data that is not contained in the Tweet class:
         self.alt_texts.append(f'Tweet by @{author.username}: {tweet.text}')
-        self.conversation.append(author.id)
+        self.conversation.add(author.id)
+        self.thread = range(self.thread.start, self.thread.stop + 1)
 
         return tweet
 
     async def fetch_thread(self):
-        if not self.tweet.in_reply_to_user_id:
-            return
-        # api = TwitterApi(**twitter_keys)
-        pass
+        try:
+            replyee_id = self.get_replyee_id(self.tweet)
+            if replyee_id is None:
+                self.add_header()
+                self.add_tweet()
+                return
+
+            while replyee_id is not None:
+                potential_reblog = db.get_tweet(replyee_id)
+                if potential_reblog is None:
+                    replyee_tweet = await self.fetch_and_process_tweet(replyee_id)
+                    replyee_id = self.get_replyee_id(replyee_tweet)
+                else:
+                    (tweet_index, reblog_id, blogname) = potential_reblog
+                    self.thread = range(self.thread.start + tweet_index, self.thread.stop + tweet_index)
+                    self.reblog = (reblog_id, blogname)
+                    break
+
+            self.add_header()
+            self.alt_texts.reverse()
+            self.add_tweets()
+        except TwitterError as e:
+            logger.error(f"Something went wrong fetching the thread: {e}")
