@@ -102,8 +102,8 @@ class Database:
         with connection:
             print(" **** Table: twitter_names **** ")
             cursor = connection.execute("SELECT * FROM twitter_names")
-            for row in cursor:
-                print(row)
+            for (id, person) in cursor:
+                print(f"{id}: {str(person)}")
             if verbose:
                 print(" **** Table: tweets **** ")
                 cursor = connection.execute("SELECT * FROM tweets")
