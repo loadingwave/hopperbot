@@ -47,10 +47,11 @@ class Renderer(Chrome):
         """
         if thread_range is None:
             self.get(url)
-            sleep(1)
+            sleep(2)
             tweet_element = self.find_element(By.XPATH, self.TWEET_XPATH.format(1))
-            tweet_element.screenshot(filename_prefix)
-            return [filename_prefix]
+            filename = filename_prefix + "1.png"
+            tweet_element.screenshot(filename)
+            return [filename]
 
         elif thread_range.start < 0:
             raise ValueError("Thread range should have positive start")

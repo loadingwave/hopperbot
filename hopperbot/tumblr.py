@@ -119,12 +119,12 @@ class TumblrPost:
             media_sources = renderable.render(renderer)
             self.media_sources = self.media_sources | media_sources
 
-        # Post the post
+        # Post the post. We need to copy the media_sources because the api consumes the dictionary
         kwargs = {
             "blogname": blogname,
             "content": self.content,
             "tags": ["hb.automated"],
-            "media_sources": self.media_sources,
+            "media_sources": self.media_sources.copy(),
         }
 
         if self.reblog is None:
