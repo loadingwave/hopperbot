@@ -1,10 +1,9 @@
 import os
 import logging
-from typing import Optional, Tuple, TypeAlias, Union
+from typing import Optional, Tuple, TypeAlias, Union, Any
 from pytumblr2 import TumblrRestClient as TumblrApi
 import re
 from hopperbot.renderer import Renderer
-from hopperbot.twitter_update import TwitterRenderable
 from abc import ABC, abstractclassmethod
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
@@ -111,24 +110,7 @@ class TumblrPost:
 
         self.content.append(block)
 
-    def add_tweets(self, url: str, alt_texts: list[str], thread: range):
-        if not len(alt_texts) == len(thread):
-            raise ValueError("All tweets should have an alt text")
-
-        start = len(self.content)
-        image_ids = [f"image{index}" for index in range(start, start + len(thread))]
-        renderable = TwitterRenderable(url, thread, image_ids, f"tweet-{str(start)}-")
-        self.renderables.append(renderable)
-
-        last_image_id = image_ids.pop()
-        last_alt_text = alt_texts.pop()
-
-        for image_id, alt_text in zip(image_ids, alt_texts):
-            self.add_image_block(image_id, alt_text)
-
-        self.add_image_block(last_image_id, last_alt_text, url)
-
-    def post(self, blogname: str, api: TumblrApi) -> None:
+    async def post(self, blogname: str, api: TumblrApi) -> dict[str, Any]:
         # Render the images
         renderer = Renderer()
         for renderable in self.renderables:
@@ -150,8 +132,6 @@ class TumblrPost:
             kwargs["id"] = self.reblog[1]
             response = api.reblog_post(**kwargs)
 
-        print(response)
-
         # Clean up the rendered images
         for filename in self.media_sources.values():
             if os.path.exists(filename):
@@ -159,8 +139,7 @@ class TumblrPost:
             else:
                 logger.warning(f"The following filename could not be deleted: {filename}")
 
-        # Add to the tweet database
-        raise NotImplementedError("Post should have to be added to tweet database, but this is not implemented yet")
+        return response
 
     def __str__(self) -> str:
         return f"Tumlbrpost with {len(self.content)} content blocks"

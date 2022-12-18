@@ -4,7 +4,7 @@ import sys
 from asyncio import Queue, Task
 
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.tumblr import TumblrApi, Update
+from hopperbot.tumblr import TumblrApi, TumblrPost
 from hopperbot.twitter import TwitterListener
 from hopperbot.config import init_twitter_blognames
 
@@ -12,7 +12,7 @@ CONFIG_FILENAME = "config.toml"
 CONFIG_CHANGED = False
 
 
-async def setup_twitter(queue: Queue[Update]) -> Task[None]:
+async def setup_twitter(queue: Queue[TumblrPost]) -> Task[None]:
 
     usernames = list(init_twitter_blognames(CONFIG_FILENAME).keys())
 
@@ -36,12 +36,14 @@ async def setup_twitter(queue: Queue[Update]) -> Task[None]:
     return twitter_client.filter(expansions=expansions, media_fields=media_fields)
 
 
-async def setup_tumblr(queue: Queue[Update]) -> None:
+async def setup_tumblr(queue: Queue[TumblrPost]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
 
     while True:
-        update = await queue.get()
-        await tumblr_api.post_update(update)
+        update_post = await queue.get()
+        response = await update_post.post("test37", tumblr_api)
+        if not response:
+            logging.error("Tumblr response was wrong")
         queue.task_done()
 
 
@@ -68,7 +70,7 @@ async def main() -> None:
 
     # The work queue, things to update on are put in the queue, and when nothing
     # else is to be done, tumblr posts whatever is in the queue to tumblr
-    queue: Queue[Update] = Queue()
+    queue: Queue[TumblrPost] = Queue()
 
     tumblr_task = asyncio.create_task(setup_tumblr(queue))
     twitter_task = await setup_twitter(queue)
