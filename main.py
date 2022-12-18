@@ -11,7 +11,10 @@ from hopperbot.tumblr import TumblrApi, TumblrPost
 from hopperbot.twitter import TwitterListener
 
 CONFIG_FILENAME = "config.toml"
-CONFIG_CHANGED = False
+CONFIG_CHANGED = True
+
+logger = logging.getLogger("Main")
+logger.setLevel(logging.DEBUG)
 
 
 def initialise_identifiers(filename: str) -> dict[str, str]:
@@ -65,18 +68,16 @@ async def setup_tumblr(queue: Queue[TumblrPost], identifiers: dict[str, str]) ->
     while True:
         update_post = await queue.get()
         if update_post.identifier is None:
-            logging.error("Update post had no identifier?")
+            logger.error("Update post had no identifier?")
             blogname = "test37"
         else:
             blogname = identifiers.get(update_post.identifier)
 
         if blogname is None:
-            logging.error("No blogname found?")
+            logger.error("No blogname found?")
             blogname = "test37"
 
-        response = await update_post.post(blogname, tumblr_api)
-        if not response:
-            logging.error("Tumblr response was wrong")
+        await update_post.post(blogname, tumblr_api)
         queue.task_done()
 
 

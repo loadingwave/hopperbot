@@ -134,6 +134,10 @@ class TumblrPost:
             kwargs["id"] = self.reblog[1]
             response = api.reblog_post(**kwargs)
 
+        # Log posting success
+        if response.get("state") == "published":
+            logger.info(f"Sucessfully posted to {blogname}")
+
         # Clean up the rendered images
         for filename in self.media_sources.values():
             if os.path.exists(filename):
