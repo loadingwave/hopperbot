@@ -1,7 +1,7 @@
 import logging
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, cast, Any
 
-from tweepy import ReferencedTweet, Response, Tweet
+from tweepy import ReferencedTweet, Response, Tweet, User
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
 # from hopperbot.config import TWITTER_BLOGNAMES
@@ -12,6 +12,22 @@ from hopperbot.tumblr import TumblrPost, Renderable
 
 logger = logging.getLogger("Twitter")
 logger.setLevel(logging.DEBUG)
+
+
+class TwitterException(Exception):
+    pass
+
+
+class TweetNotFound(TwitterException):
+    pass
+
+
+class NoReferencedTweet(TwitterException):
+    pass
+
+
+class InvalidTwitterResponse(TwitterException):
+    pass
 
 
 class TwitterRenderable(Renderable):
@@ -144,3 +160,64 @@ class TwitterUpdate(TumblrPost):
         else:
             self.add_text_block(f"{author.name.capitalize()} posted on twitter!")
         super().__init__()
+
+    def get_replyee(self, tweet: Tweet) -> Optional[int]:
+        """Gets the id of the tweet the supplied tweet was replying to. Returns
+        None if the tweet didn't reply to anyone. If such a tweet should exist
+        but doesnt, the function throws a NoReferencedTweet exeption"""
+        if not tweet.in_reply_to_user_id:
+            return None
+
+        if not tweet.referenced_tweets:
+            logger.error(f"in_reply_to_user_id is set for tweet {tweet.id}, but no referenced_tweets exist")
+            raise NoReferencedTweet
+
+        ref_tweet = next(filter(lambda t: t.type == "replied_to", tweet.referenced_tweets))
+        ref_tweet = cast(ReferencedTweet, ref_tweet)
+        if ref_tweet is None:
+            logger.error(f"in_reply_to_user_id is set for tweet {tweet.id}, but no referenced_tweets exist")
+            raise NoReferencedTweet
+
+        return ref_tweet.id
+
+    async def fetch_and_process_tweet(self, tweet_id: int, api: TwitterApi) -> Tweet:
+        """Gets and returns the tweet in question and updates the conversation and alt texts
+        Raises a TwitterException if anything goes wrong
+        """
+        # Fetch tweet:
+        expansions = ["author_id", "in_reply_to_user_id", "referenced_tweets.id"]
+        response = await api.get_tweet(id=tweet_id, expansions=expansions)
+
+        # Error handling:
+        if not isinstance(response, Response):
+            logger.error(f"API did not return a Response while fetching tweet {tweet_id}")
+            raise TwitterException
+
+        includes: dict[str, Any]
+        tweet: Tweet
+        (tweet, includes, errors, _) = response
+        if errors:
+            for error in errors:
+                logger.error(f"Error while fetching tweet {tweet_id}: {error}")
+            raise TwitterException
+
+        users = includes.get("users")
+        if not users:
+            # This condition filters both for None and an empty list
+            logger.error(f"API did not return users while fetching tweet {tweet_id}")
+            raise TwitterException
+        users = cast(list[User], users)
+
+        author = users[0]
+
+        # Process the data that is not contained in the Tweet class:
+        self.alt_texts.append(f'Tweet by @{author.username}: {tweet.text}')
+        self.conversation.append(author.id)
+
+        return tweet
+
+    async def fetch_thread(self):
+        if not self.tweet.in_reply_to_user_id:
+            return
+        # api = TwitterApi(**twitter_keys)
+        pass
