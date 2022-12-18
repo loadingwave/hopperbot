@@ -30,12 +30,14 @@ class Renderable(ABC):
 class TumblrPost:
     def __init__(
         self,
+        identifier: Optional[str] = None,
         content: list[ContentBlock] = [],
         renderables: list[Renderable] = [],
         media_sources: dict[str, str] = {},
         tags: list[str] = [],
         reblog: Optional[Tuple[int, str]] = None,
     ) -> None:
+        self.identifier = identifier
         self.content = content
         self.renderables = renderables
         self.media_sources = media_sources

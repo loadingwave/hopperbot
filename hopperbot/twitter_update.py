@@ -43,7 +43,7 @@ class TwitterUpdate(TumblrPost):
         self.tweet = tweet
         self.alt_texts = [f'Tweet by @{username}: {tweet.text}']
         self.url = f"https://twitter.com/{username}/status/{tweet.id}"
-        super().__init__()
+        super().__init__(username)
 
     def add_tweet(self):
         image_id = f"image{len(self.content)}"

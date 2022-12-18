@@ -2,19 +2,42 @@ import asyncio
 import logging
 import sys
 from asyncio import Queue, Task
+from typing import Union, cast
+
+import tomllib
 
 from hopperbot.secrets import tumblr_keys, twitter_keys
 from hopperbot.tumblr import TumblrApi, TumblrPost
 from hopperbot.twitter import TwitterListener
-from hopperbot.config import init_twitter_blognames
 
 CONFIG_FILENAME = "config.toml"
 CONFIG_CHANGED = False
 
 
-async def setup_twitter(queue: Queue[TumblrPost]) -> Task[None]:
+def initialise_identifiers(filename: str) -> dict[str, str]:
+    with open(filename, "rb") as f:
+        data: dict[str, list[dict[str, Union[str, list[dict[str, str]]]]]] = tomllib.load(f)
 
-    usernames = list(init_twitter_blognames(CONFIG_FILENAME).keys())
+    if data is None:
+        raise Exception("Reading config returned None")
+    else:
+        twitter_blognames = {
+            k: v
+            for d in [
+                {
+                    cast(str, twitter_update.get("username")).lower(): cast(str, update.get("blogname"))
+                    for twitter_update in cast(list[dict[str, str]], update.get("Twitter", []))
+                }
+                for update in data.get("Update", [])
+            ]
+            for k, v in d.items()
+        }
+        logging.debug(f"Initalized twitter_blognames: {twitter_blognames}")
+
+        return twitter_blognames
+
+
+async def setup_twitter(queue: Queue[TumblrPost], usernames) -> Task[None]:
 
     twitter_client = TwitterListener(queue, **twitter_keys)
 
@@ -36,12 +59,22 @@ async def setup_twitter(queue: Queue[TumblrPost]) -> Task[None]:
     return twitter_client.filter(expansions=expansions, media_fields=media_fields)
 
 
-async def setup_tumblr(queue: Queue[TumblrPost]) -> None:
+async def setup_tumblr(queue: Queue[TumblrPost], identifiers: dict[str, str]) -> None:
     tumblr_api = TumblrApi(**tumblr_keys)
 
     while True:
         update_post = await queue.get()
-        response = await update_post.post("test37", tumblr_api)
+        if update_post.identifier is None:
+            logging.error("Update post had no identifier?")
+            blogname = "test37"
+        else:
+            blogname = identifiers.get(update_post.identifier)
+
+        if blogname is None:
+            logging.error("No blogname found?")
+            blogname = "test37"
+
+        response = await update_post.post(blogname, tumblr_api)
         if not response:
             logging.error("Tumblr response was wrong")
         queue.task_done()
@@ -71,9 +104,10 @@ async def main() -> None:
     # The work queue, things to update on are put in the queue, and when nothing
     # else is to be done, tumblr posts whatever is in the queue to tumblr
     queue: Queue[TumblrPost] = Queue()
+    identifiers = initialise_identifiers(CONFIG_FILENAME)
 
-    tumblr_task = asyncio.create_task(setup_tumblr(queue))
-    twitter_task = await setup_twitter(queue)
+    tumblr_task = asyncio.create_task(setup_tumblr(queue, identifiers))
+    twitter_task = await setup_twitter(queue, list(identifiers.keys()))
 
     await twitter_task
     await tumblr_task
