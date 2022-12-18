@@ -97,5 +97,26 @@ class Database:
         # that tuple to get the actual person
         return result[0] if result is not None else None
 
+    def dump_contents(self, verbose: bool = False):
+        connection = sqlite.connect(self.filename, detect_types=sqlite.PARSE_DECLTYPES)
+        with connection:
+            print(" **** Table: twitter_names **** ")
+            cursor = connection.execute("SELECT * FROM twitter_names")
+            for row in cursor:
+                print(row)
+            if verbose:
+                print(" **** Table: tweets **** ")
+                cursor = connection.execute("SELECT * FROM tweets")
+                for row in cursor:
+                    print(row)
+            else:
+                cursor = connection.execute("SELECT count(tweet_id) FROM tweets")
+                result = cursor.fetchone()[0]
+                print(f" **** Table tweets contains {result} tweets **** ")
+
 
 database = Database(FILENAME)
+
+
+if __name__ == "__main__":
+    database.dump_contents()
