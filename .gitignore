@@ -171,3 +171,4 @@ hopperbot.db
 hopperbot.db
 *.db
 test.py
+debug.toml
