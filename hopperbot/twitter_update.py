@@ -8,7 +8,7 @@ from tweepy.asynchronous import AsyncClient as TwitterApi
 from hopperbot.database import database as db
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import twitter_keys
-from hopperbot.tumblr import TumblrPost, Renderable
+from hopperbot.tumblr import TumblrPost, Renderable, TumblrApi
 from hopperbot.errors import TwitterError, NoReferencedTweetError
 
 logger = logging.getLogger("Twitter")
@@ -179,3 +179,19 @@ class TwitterUpdate(TumblrPost):
             self.add_tweets()
         except TwitterError as e:
             logger.error(f"Something went wrong fetching the thread: {e}")
+
+    async def post(self, blogname: str, api: TumblrApi) -> dict[str, Any]:
+        await self.fetch_thread()
+
+        response = await super().post(blogname, api)
+
+        errors = response.get("errors")
+        post_id = response.get("id")
+        if errors:
+            logger.error(f"Tumblr response contained errors: {errors}")
+        elif post_id:
+            db.add_tweet(self.tweet.id, self.thread.stop, post_id, blogname)
+        else:
+            logger.error("Tumblr response contained no errors, but also no post id")
+
+        return response
