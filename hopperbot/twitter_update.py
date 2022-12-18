@@ -4,7 +4,6 @@ from typing import Optional, cast, Any
 from tweepy import ReferencedTweet, Response, Tweet, User
 from tweepy.asynchronous import AsyncClient as TwitterApi
 
-# from hopperbot.config import TWITTER_BLOGNAMES
 from hopperbot.database import database as db
 from hopperbot.renderer import Renderer
 from hopperbot.secrets import twitter_keys
