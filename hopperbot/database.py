@@ -41,6 +41,7 @@ class Database:
         con.close()
 
     def add_tweet(self, tweet_id: int, tweet_index: int, tumblr_id: int, blogname: str) -> None:
+        """The tweet index of a single tweet would be 1"""
         database = sqlite.connect(self.filename, detect_types=sqlite.PARSE_DECLTYPES)
 
         with database:
