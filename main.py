@@ -7,7 +7,7 @@ from typing import Union, cast
 import tomllib
 
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.tumblr import TumblrApi, TumblrPost 
+from hopperbot.tumblr import TumblrApi, TumblrPost
 from hopperbot.twitter import TwitterListener
 
 CONFIG_FILENAME = "config.toml"
@@ -109,7 +109,7 @@ async def main() -> None:
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(setup_tumblr(queue, identifiers))
-        # twitter_task = await setup_twitter(queue, list(identifiers.keys()), tg)
+        await setup_twitter(queue, list(identifiers.keys()), tg)
 
 
 if __name__ == "__main__":
