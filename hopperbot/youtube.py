@@ -5,12 +5,6 @@ import xmltodict
 from aiohttp import web
 
 
-async def handle(request: web.Request):
-    name = request.match_info.get("name", "Anonymous")
-    text = "Hello, " + name
-    return web.Response(text=text)
-
-
 def parse_feed(source: str) -> tuple[str, str, bool]:
     xml = xmltodict.parse(source)
 
@@ -66,8 +60,15 @@ async def print_post(request: web.Request) -> web.Response:
     return web.Response(status=204)
 
 
-app = web.Application()
-app.add_routes([web.get("/", handle), web.get("/{name}", handle), web.post("/", print_post)])
+class Youtube:
 
-if __name__ == "__main__":
-    web.run_app(app)
+    app: web.Application
+    runner: web.AppRunner
+
+    def __init__(self):
+        app = web.Application()
+        app.add_routes([web.post("/", print_post)])
+
+    async def setup(self):
+        self.runner = web.AppRunner(self.app)
+        raise NotImplementedError
