@@ -200,3 +200,6 @@ class TwitterUpdate(TumblrPost):
             logger.error("Tumblr response contained no errors, but also no post id")
 
         return response
+
+    def __str__(self) -> str:
+        return f"Twitter Update: {self.tweet.id} and {len(self.thread) - 1}"
