@@ -1,12 +1,16 @@
-import os
 import logging
-from typing import Optional, Tuple, TypeAlias, Union, Any
-from pytumblr2 import TumblrRestClient as TumblrApi
+import os
 import re
-from hopperbot.renderer import Renderer
 from abc import ABC, abstractclassmethod
+from typing import Any, Optional, Tuple, TypeAlias, Union
+
+from pytumblr2 import TumblrRestClient as TumblrApi
+
+from hopperbot.renderer import Renderer
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
+TumblrApi = TumblrApi
+
 
 urllib_logger = logging.getLogger("urllib3")
 urllib_logger.setLevel(logging.INFO)
@@ -134,8 +138,8 @@ class TumblrPost:
         if self.reblog is None:
             response = api.create_post(**kwargs)
         else:
-            kwargs["parent_blogname"] = self.reblog[0]
-            kwargs["id"] = self.reblog[1]
+            kwargs["id"] = str(self.reblog[0])
+            kwargs["parent_blogname"] = self.reblog[1]
             response = api.reblog_post(**kwargs)
 
         # Log posting success
