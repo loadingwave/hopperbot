@@ -1,61 +1,59 @@
+from asyncio import Queue
 from datetime import datetime
-from typing import Union, cast
+from typing import Optional
 
 import xmltodict
 from aiohttp import web
 
+from hopperbot.errors import Err, Ok, Result
+from hopperbot.tumblr import TumblrPost
 
-def parse_feed(source: str) -> tuple[str, str, bool]:
-    xml = xmltodict.parse(source)
 
-    feed = xml.get("feed")
-    if feed is None:
-        raise ValueError("No feed found in xml")
-    feed = cast(dict[str, Union[str, dict[str, Union[str, dict[str, str]]]]], feed)
+def xml_to_post(xml_string: str) -> Result[Optional[TumblrPost], KeyError]:
+    xml = xmltodict.parse(xml_string)
 
-    entry = feed.get("entry")
-    if entry is None:
-        raise ValueError("No entry found in xml")
-    entry = cast(dict[str, Union[str, dict[str, str]]], entry)
+    try:
+        data = xml["feed"]["entry"]
+        publish_time_str: str = data["published"]
+        update_time_str: str = data["updated"]
+    except KeyError as e:
+        return Err(e)
 
+    # Compare publish and update times to determine if this is a new video
     time_format = "%Y-%m-%dT%H:%M:%S%z"
+    publish_time_str = publish_time_str[:19] + publish_time_str[-6:]
+    publish_time = datetime.strptime(publish_time_str, time_format)
 
-    published_str = cast(str | None, entry.get("published"))
-    if published_str is None:
-        raise ValueError("No published found in xml")
-    published_time = datetime.strptime(published_str, time_format)
+    update_time_str = update_time_str[:19] + update_time_str[-6:]
+    update_time = datetime.strptime(publish_time_str, time_format)
 
-    updated_str = cast(str | None, entry.get("updated"))
-    if updated_str is None:
-        raise ValueError("No updated found in xml")
-    updated_str = updated_str[:19] + updated_str[-6:]
-    updated_time = datetime.strptime(updated_str, time_format)
+    new_video = (update_time - publish_time).seconds == 0
 
-    new_video = (updated_time - published_time).seconds == 0
+    # Prepare the post
+    if new_video:
+        try:
+            channel_name = data["author"]["name"]
+            url = data["link"]["@href"]
+        except KeyError as e:
+            return Err(e)
 
-    url_element = entry.get("link")
-    if url_element is None:
-        raise ValueError("No url found in xml")
-
-    url_element = cast(dict[str, str], url_element)
-    url = cast(str | None, url_element.get("@href"))
-    if url is None:
-        raise ValueError("No url found in xml")
-
-    channel_id = entry.get("yt:channelId")
-    if channel_id is None:
-        raise ValueError("No channel_id found in xml")
-    channel_id = cast(str, channel_id)
-
-    return (channel_id, url, new_video)
+        post = TumblrPost()
+        post.add_text_block(f"{channel_name} uploaded!")
+        post.add_video_block(url)
+        return Ok(post)
+    else:
+        return Ok(None)
 
 
-async def print_post(request: web.Request) -> web.Response:
+async def handle_youtube_notification(request: web.Request) -> web.Response:
     if request.content_type == "application/atom+xml":
-        feed_str = await request.text()
-        (channel_id, url, new_video) = parse_feed(feed_str)
-        action = "posted a new video" if new_video else "updated this video"
-        print(f"Channel {channel_id} {action} ({url})")
+        xml_string = await request.text()
+        post = xml_to_post(xml_string)
+
+        if post is not None:
+            queue = Queue()
+            await queue.put(post)
+            raise NotImplementedError
 
     return web.Response(status=204)
 
@@ -67,7 +65,8 @@ class Youtube:
 
     def __init__(self):
         app = web.Application()
-        app.add_routes([web.post("/", print_post)])
+        app.add_routes([web.post("/", handle_youtube_notification)])
+        raise NotImplementedError
 
     async def setup(self):
         self.runner = web.AppRunner(self.app)

@@ -172,3 +172,5 @@ hopperbot.db
 *.db
 test.py
 debug.toml
+poll_test.py
+.gitignore
