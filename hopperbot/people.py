@@ -1,5 +1,4 @@
 from random import choice
-from typing import List
 
 
 class Pronoun:
@@ -16,6 +15,21 @@ class Pronoun:
         self.reflexive = reflexive
         self.possesive_pronoun = possesive_pronoun
         self.possesive_determiner = possessive_determiner
+
+    def em(self) -> str:
+        return self.object
+
+    def ey(self) -> str:
+        return self.subject
+
+    def emself(self) -> str:
+        return self.reflexive
+
+    def eir(self) -> str:
+        return self.possesive_pronoun
+
+    def eirs(self) -> str:
+        return self.possesive_determiner
 
     def __repr__(self) -> str:
         return self.object.upper()
@@ -51,24 +65,27 @@ def convert_pronoun(b: str) -> Pronoun:
 
 
 class Person:
-    def __init__(self, name: str, pronouns: List[Pronoun]) -> None:
+    def __init__(self, name: str, pronouns: list[Pronoun]) -> None:
         self.name = name
         self.pronouns = pronouns
 
+    def pronoun(self) -> Pronoun:
+        return choice(self.pronouns)
+
     def em(self) -> str:
-        return choice(self.pronouns).object
+        return self.pronoun().em()
 
     def ey(self) -> str:
-        return choice(self.pronouns).subject
+        return self.pronoun().ey()
 
     def emself(self) -> str:
-        return choice(self.pronouns).reflexive
+        return self.pronoun().emself()
 
     def eir(self) -> str:
-        return choice(self.pronouns).possesive_pronoun
+        return self.pronoun().eir()
 
     def eirs(self) -> str:
-        return choice(self.pronouns).possesive_determiner
+        return self.pronoun().eirs()
 
     def __str__(self) -> str:
         return f"{self.name} ({'/'.join(map(str, self.pronouns))})"
