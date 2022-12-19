@@ -7,7 +7,7 @@ from typing import Union, cast
 import tomllib
 
 from hopperbot.secrets import tumblr_keys, twitter_keys
-from hopperbot.tumblr import TumblrApi, TumblrPost
+from hopperbot.tumblr import TumblrApi, TumblrPost 
 from hopperbot.twitter import TwitterListener
 
 CONFIG_FILENAME = "config.toml"
@@ -40,7 +40,7 @@ def initialise_identifiers(filename: str) -> dict[str, str]:
         return twitter_blognames
 
 
-async def setup_twitter(queue: Queue[TumblrPost], usernames) -> Task[None]:
+async def setup_twitter(queue: Queue[TumblrPost], usernames: list[str], tg: asyncio.TaskGroup) -> Task[None]:
 
     twitter_client = TwitterListener(queue, **twitter_keys)
 
@@ -59,7 +59,7 @@ async def setup_twitter(queue: Queue[TumblrPost], usernames) -> Task[None]:
 
     # AsyncStreamingClient.filter() returns a task, that is why the return type
     # is "Task[None]" and not "None"
-    return twitter_client.filter(expansions=expansions, media_fields=media_fields)
+    return twitter_client.filter(tg=tg, expansions=expansions, media_fields=media_fields)
 
 
 async def setup_tumblr(queue: Queue[TumblrPost], identifiers: dict[str, str]) -> None:
@@ -71,7 +71,7 @@ async def setup_tumblr(queue: Queue[TumblrPost], identifiers: dict[str, str]) ->
             logger.error("Update post had no identifier?")
             blogname = "test37"
         else:
-            blogname = identifiers.get(update_post.identifier)
+            blogname = identifiers.get(update_post.identifier, "test37")
 
         if blogname is None:
             logger.error("No blogname found?")
@@ -107,12 +107,11 @@ async def main() -> None:
     queue: Queue[TumblrPost] = Queue()
     identifiers = initialise_identifiers(CONFIG_FILENAME)
 
-    tumblr_task = asyncio.create_task(setup_tumblr(queue, identifiers))
-    twitter_task = await setup_twitter(queue, list(identifiers.keys()))
-
-    await twitter_task
-    await tumblr_task
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(setup_tumblr(queue, identifiers))
+        # twitter_task = await setup_twitter(queue, list(identifiers.keys()), tg)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    with asyncio.Runner() as runner:
+        runner.run(main())
