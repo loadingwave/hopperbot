@@ -112,6 +112,9 @@ class TumblrPost:
 
         self.content.append(block)
 
+    def add_tag(self, tag: str) -> None:
+        self.tags.append("tag")
+
     async def post(self, blogname: str, api: TumblrApi) -> dict[str, Any]:
         # Render the images
         renderer = Renderer()
@@ -120,10 +123,11 @@ class TumblrPost:
             self.media_sources = self.media_sources | media_sources
 
         # Post the post. We need to copy the media_sources because the api consumes the dictionary
+        # and these structures are internaly mutable
         kwargs = {
             "blogname": blogname,
             "content": self.content,
-            "tags": ["hb.automated"],
+            "tags": self.tags,
             "media_sources": self.media_sources.copy(),
         }
 
@@ -148,4 +152,7 @@ class TumblrPost:
         return response
 
     def __str__(self) -> str:
-        return f"Tumlbrpost with {len(self.content)} content blocks"
+        return f"""Content: {self.content}
+Media Sources: {self.media_sources}
+Tags: {self.tags}
+        """

@@ -17,9 +17,9 @@ logger.setLevel(logging.DEBUG)
 class TwitterRenderable(Renderable):
     def __init__(self, url: str, ids: list[str], filename_prefix: str, thread: Optional[range] = None) -> None:
         if thread is None:
-            if len(ids) != 1:
+            if not len(ids) == 1:
                 raise ValueError("Thread range and number of ids should be equal")
-        elif len(thread) != len(ids):
+        elif not len(thread) == len(ids):
             raise ValueError("Thread range and number of ids should be equal")
 
         self.url = url
@@ -30,6 +30,9 @@ class TwitterRenderable(Renderable):
     def render(self, renderer: Renderer) -> dict[str, str]:
         filenames = renderer.render_tweets(self.url, self.filename_prefix, self.thread)
         return {id : filename for (id, filename) in zip(self.ids, filenames)}
+
+    def __str__(self) -> str:
+        return f"TwitterRenderable(url: {self.url}, ids: {self.ids}, filename_prefix: {self.filename_prefix}, thread: {self.thread}"
 
 
 class TwitterUpdate(TumblrPost):
@@ -56,8 +59,11 @@ class TwitterUpdate(TumblrPost):
             raise ValueError("All tweets should have an alt text")
 
         start = len(self.content)
+
         image_ids = [f"image{index}" for index in range(start, start + len(self.thread))]
-        renderable = TwitterRenderable(self.url, image_ids, f"tweet-{str(start)}-", self.thread)
+        # Here we need to copy image_ids because these lists are internaly mutable, calling image_ids.pop()
+        # also removes an elment from the list that the renderable uses
+        renderable = TwitterRenderable(self.url, image_ids.copy(), f"tweet-{str(start)}", self.thread)
         self.renderables.append(renderable)
 
         last_image_id = image_ids.pop()
