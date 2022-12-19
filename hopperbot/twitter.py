@@ -1,7 +1,8 @@
 import logging
-from asyncio import Queue
+import asyncio
 
-from tweepy import Response, StreamRule, Tweet
+from typing import Optional
+from tweepy import Response, StreamRule, Tweet, TweepyException
 from tweepy.asynchronous import AsyncStreamingClient
 
 from hopperbot.tumblr import TumblrPost
@@ -17,12 +18,38 @@ TWITTER_RULE_MAX_LEN = 512
 
 
 class TwitterListener(AsyncStreamingClient):
-    def __init__(self, queue: Queue[TumblrPost], bearer_token: str) -> None:
+    def __init__(self, queue: asyncio.Queue[TumblrPost], bearer_token: str) -> None:
         self.queue = queue
         super().__init__(bearer_token)
 
     async def on_connect(self) -> None:
         logger.info("Twitter Listener is connected")
+
+    def filter(self, tg: Optional[asyncio.TaskGroup] = None, **params) -> asyncio.Task[None]:
+        # This one is copied excactly from AsyncStreamingClient, except that this one
+        # allows this to be connected to a task group
+        if self.task is not None and not self.task.done():
+            raise TweepyException("Stream is already connected")
+
+        endpoint = "search"
+
+        params = self._process_params(
+            params, endpoint_parameters=(
+                "backfill_minutes", "expansions", "media.fields",
+                "place.fields", "poll.fields", "tweet.fields", "user.fields"
+            )
+        )
+
+        if tg is None:
+            self.task = asyncio.create_task(
+                self._connect("GET", endpoint, params=params)
+            )
+        else:
+            self.task = tg.create_task(
+                self._connect("GET", endpoint, params=params)
+            )
+        # Use name parameter when support for Python 3.7 is dropped
+        return self.task
 
     async def reset_rules(self) -> None:
         get_response = await self.get_rules()
