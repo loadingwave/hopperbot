@@ -15,18 +15,20 @@ logger.setLevel(logging.DEBUG)
 
 class Youtube:
 
-    app: web.Application
     runner: web.AppRunner
-    queue: Queue
 
-    def __init__(self):
+    def __init__(self, queue: Queue[TumblrPost], port: int = 8080):
+        self.queue = queue
+        self.port = port
+
+    async def setup(self) -> None:
         app = web.Application()
         app.add_routes([web.post("/", self.handle_youtube_notification)])
-        raise NotImplementedError
 
-    async def setup(self):
-        self.runner = web.AppRunner(self.app)
-        raise NotImplementedError
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "localhost", self.port)
+        await site.start()
 
     def xml_to_post(self, xml_string: str) -> Result[Optional[TumblrPost], KeyError]:
         xml = xmltodict.parse(xml_string)
@@ -58,20 +60,18 @@ class Youtube:
             logger.info(f"This Youtube video was just uploaded: {url}")
             return Ok(post)
         else:
-            logger.info(f"This Youtube video was just updated: {url}")
+            logger.debug(f"This Youtube video was just updated: {url}")
             return Ok(None)
 
     async def handle_youtube_notification(self, request: web.Request) -> web.Response:
         if request.content_type == "application/atom+xml":
             xml_string = await request.text()
-
-            match self.xml_to_post(xml_string):
-                case Err(e):
-                    logger.error(f"Error while parsing a Youtube notification: {e}")
-                case Ok(None):
-                    pass
-                case Ok(post):
+            try:
+                post = self.xml_to_post(xml_string).unwrap()
+                if post is not None:
                     await self.queue.put(post)
+            except KeyError as e:
+                logger.error(f"Error while parsing a Youtube notification: {e}")
         else:
             logger.warning(f'Youtube was just asked to handle "{request.content_type}" instead of "application/atom+xml"')
 
