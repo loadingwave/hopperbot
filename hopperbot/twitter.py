@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from typing import Optional
+from typing import Optional, Any
 from tweepy import Response, StreamRule, Tweet, TweepyException
 from tweepy.asynchronous import AsyncStreamingClient
 
@@ -25,9 +25,12 @@ class TwitterListener(AsyncStreamingClient):
     async def on_connect(self) -> None:
         logger.info("Twitter Listener is connected")
 
-    def filter(self, tg: Optional[asyncio.TaskGroup] = None, **params) -> asyncio.Task[None]:
+    def filter(self, tg: Optional[asyncio.TaskGroup] = None, **params: Any) -> asyncio.Task[None]:
         # This one is copied excactly from AsyncStreamingClient, except that this one
         # allows this to be connected to a task group
+
+        # This line was added for mypy
+        self.task: asyncio.Task[None]
         if self.task is not None and not self.task.done():
             raise TweepyException("Stream is already connected")
 

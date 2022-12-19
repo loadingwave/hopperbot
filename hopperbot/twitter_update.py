@@ -47,14 +47,14 @@ class TwitterUpdate(TumblrPost):
         self.url = f"https://twitter.com/{username}/status/{tweet.id}"
         super().__init__(username)
 
-    def add_tweet(self):
+    def add_tweet(self) -> None:
         image_id = f"image{len(self.content)}"
         renderable = TwitterRenderable(self.url, [image_id], f"tweet-{len(self.content)}-")
 
         self.renderables.append(renderable)
         self.add_image_block(image_id, self.alt_texts[0], self.url)
 
-    def add_tweets(self):
+    def add_tweets(self) -> None: 
         if not len(self.alt_texts) == len(self.thread):
             raise ValueError("All tweets should have an alt text")
 
@@ -160,7 +160,7 @@ class TwitterUpdate(TumblrPost):
 
         return tweet
 
-    async def fetch_thread(self):
+    async def fetch_thread(self) -> None:
         try:
             replyee_id = self.get_replyee_id(self.tweet)
             if replyee_id is None:

@@ -9,7 +9,6 @@ from pytumblr2 import TumblrRestClient as TumblrApi
 from hopperbot.renderer import Renderer
 
 ContentBlock: TypeAlias = dict[str, Union[str, dict[str, str], list[dict[str, Union[str, int]]]]]
-TumblrApi = TumblrApi
 
 
 urllib_logger = logging.getLogger("urllib3")
